@@ -164,14 +164,8 @@ const Dashboard = () => {
                     </h2>
                     <AIChat />
                   </div>
-                  <div className="lg:col-span-5 flex flex-col">
-                    <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                      <CheckSquare className="w-5 h-5 text-indigo-500" />
-                      Daily Roadmap
-                    </h2>
-                    <div className="flex-1 min-h-[500px]">
-                      <TaskList key={taskRefreshKey} />
-                    </div>
+                  <div className="lg:col-span-5 flex flex-col min-h-[600px]">
+                    <TaskList key={taskRefreshKey} />
                   </div>
                 </div>
               </div>
@@ -210,8 +204,8 @@ const Dashboard = () => {
             } />
 
             <Route path="tasks" element={
-              <div className="animate-in fade-in duration-500 h-[calc(100vh-250px)]">
-                <TaskList key={taskRefreshKey} />
+              <div className="animate-in fade-in duration-500 min-h-screen">
+                <TaskList key={taskRefreshKey} isFullPage={true} />
               </div>
             } />
 

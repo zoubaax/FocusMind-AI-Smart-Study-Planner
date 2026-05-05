@@ -14,6 +14,15 @@ const taskService = {
   toggle: async (taskId) => {
     const response = await api.patch(`/tasks/${taskId}/toggle`);
     return response.data;
+  },
+
+  create: async (task) => {
+    const response = await api.post('/tasks', task);
+    return response.data;
+  },
+
+  delete: async (taskId) => {
+    await api.delete(`/tasks/${taskId}`);
   }
 };
 

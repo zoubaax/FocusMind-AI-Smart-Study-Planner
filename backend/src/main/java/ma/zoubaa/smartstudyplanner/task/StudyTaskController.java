@@ -30,6 +30,20 @@ public class StudyTaskController {
         return ResponseEntity.ok(service.getUserTasks(user.getId()));
     }
 
+    @PostMapping
+    public ResponseEntity<StudyTask> createTask(
+            @RequestBody StudyTask task,
+            @AuthenticationPrincipal User user
+    ) {
+        return ResponseEntity.ok(service.createManualTask(task, user));
+    }
+
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
+        service.deleteTask(taskId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{taskId}/toggle")
     public ResponseEntity<StudyTask> toggleTask(@PathVariable Long taskId) {
         return ResponseEntity.ok(service.toggleTaskCompletion(taskId));

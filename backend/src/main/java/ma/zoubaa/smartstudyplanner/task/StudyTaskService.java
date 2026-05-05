@@ -88,6 +88,22 @@ public class StudyTaskService {
         return repository.findByUser_Id(userId);
     }
 
+    public StudyTask createManualTask(StudyTask task, User user) {
+        task.setUser(user);
+        if (task.getStartTime() == null) {
+            task.setStartTime(LocalDateTime.now());
+            task.setEndTime(LocalDateTime.now().plusHours(1));
+        }
+        if (task.getTitle() == null || task.getTitle().isEmpty()) {
+            task.setTitle(task.getSubject() + ": " + task.getTopic());
+        }
+        return repository.save(task);
+    }
+
+    public void deleteTask(Long taskId) {
+        repository.deleteById(taskId);
+    }
+
     @Transactional
     public StudyTask toggleTaskCompletion(Long taskId) {
         StudyTask task = repository.findById(taskId)
