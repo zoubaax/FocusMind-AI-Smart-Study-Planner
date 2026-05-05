@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Target, Brain, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 import planService from '../../services/planService';
+import taskService from '../../services/taskService';
 
 const PlanGenerator = ({ schedule, onClose, onPlanGenerated }) => {
   const [goals, setGoals] = useState('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [activating, setActivating] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [dataId, setDataId] = useState(null);
 
   const extractJsonFromString = (str) => {
     // Try parsing directly first
@@ -22,6 +26,21 @@ const PlanGenerator = ({ schedule, onClose, onPlanGenerated }) => {
     return null;
   };
 
+  const handleActivate = async () => {
+    if (!dataId) return;
+    setActivating(true);
+    try {
+      await taskService.activatePlan(dataId);
+      setActivated(true);
+      setTimeout(() => onClose(), 2000);
+    } catch (err) {
+      console.error('Activation failed', err);
+      setError('Could not activate plan. Please try again.');
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!goals.trim()) {
       setError('Please tell the AI what you want to achieve.');
@@ -33,6 +52,7 @@ const PlanGenerator = ({ schedule, onClose, onPlanGenerated }) => {
 
     try {
       const data = await planService.generate(schedule.id, goals);
+      setDataId(data.id);
       console.log('AI Raw Response:', data.content);
       
       const content = extractJsonFromString(data.content);
@@ -130,13 +150,43 @@ const PlanGenerator = ({ schedule, onClose, onPlanGenerated }) => {
             )}
           </div>
           
-          <div className="p-8 border-t border-white/5 bg-white/5 flex justify-end">
-            <button 
-              onClick={onClose}
-              className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/20"
-            >
-              Done
-            </button>
+          <div className="p-8 border-t border-white/5 bg-white/5 flex justify-between items-center">
+            <p className="text-gray-500 text-sm">You can find these in your task list later.</p>
+            <div className="flex gap-4">
+              <button 
+                onClick={onClose}
+                className="px-8 py-3 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-2xl transition-all"
+              >
+                Close
+              </button>
+              <button 
+                onClick={handleActivate}
+                disabled={activating || activated}
+                className={`px-8 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-lg
+                  ${activated 
+                    ? 'bg-green-600 text-white shadow-green-500/20' 
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20'}
+                  ${activating ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                {activating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Activating...
+                  </>
+                ) : activated ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Plan Activated!
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Activate This Plan
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

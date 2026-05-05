@@ -6,6 +6,7 @@ import ScheduleList from '../components/schedule/ScheduleList';
 import PlanGenerator from '../components/plan/PlanGenerator';
 import StatsGrid from '../components/dashboard/StatsGrid';
 import AIChat from '../components/dashboard/AIChat';
+import TaskList from '../components/dashboard/TaskList';
 import scheduleService from '../services/scheduleService';
 import { 
   Layout, 
@@ -27,6 +28,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedScheduleForPlan, setSelectedScheduleForPlan] = useState(null);
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchSchedules();
@@ -46,6 +48,10 @@ const Dashboard = () => {
   const handleUploadSuccess = (newSchedule) => {
     setSchedules([newSchedule, ...schedules]);
     setShowUpload(false);
+  };
+
+  const handlePlanActivated = () => {
+    setTaskRefreshKey(prev => prev + 1);
   };
 
   // Helper to get active tab from path
@@ -150,26 +156,21 @@ const Dashboard = () => {
             <Route index element={
               <div className="animate-in fade-in duration-500">
                 <StatsGrid />
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <div className="lg:col-span-7">
                     <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                       <MessageSquare className="w-5 h-5 text-indigo-500" />
                       Quick AI Assistant
                     </h2>
                     <AIChat />
                   </div>
-                  <div className="space-y-8">
-                    <div>
-                      <h2 className="text-xl font-bold mb-6">Recent Activity</h2>
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                        <p className="text-gray-500 text-sm text-center py-8 italic">No recent activity found.</p>
-                      </div>
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold mb-6">Upcoming Deadlines</h2>
-                      <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                        <p className="text-gray-500 text-sm text-center py-8 italic">No upcoming deadlines.</p>
-                      </div>
+                  <div className="lg:col-span-5 flex flex-col">
+                    <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                      <CheckSquare className="w-5 h-5 text-indigo-500" />
+                      Daily Roadmap
+                    </h2>
+                    <div className="flex-1 min-h-[500px]">
+                      <TaskList key={taskRefreshKey} />
                     </div>
                   </div>
                 </div>
@@ -209,10 +210,8 @@ const Dashboard = () => {
             } />
 
             <Route path="tasks" element={
-              <div className="animate-in fade-in duration-500 py-20 text-center bg-white/5 rounded-3xl border border-white/10 border-dashed">
-                <CheckSquare className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-400">Task Management coming soon</h2>
-                <p className="text-gray-500 mt-2">Generate a study plan to see your daily tasks here.</p>
+              <div className="animate-in fade-in duration-500 h-[calc(100vh-250px)]">
+                <TaskList key={taskRefreshKey} />
               </div>
             } />
 
@@ -239,10 +238,7 @@ const Dashboard = () => {
         <PlanGenerator 
           schedule={selectedScheduleForPlan} 
           onClose={() => setSelectedScheduleForPlan(null)}
-          onPlanGenerated={(newPlan) => {
-            console.log('Plan generated:', newPlan);
-            // We could update global state here if needed
-          }}
+          onPlanGenerated={handlePlanActivated}
         />
       )}
     </div>
