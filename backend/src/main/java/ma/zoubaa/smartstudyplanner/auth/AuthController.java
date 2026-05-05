@@ -1,7 +1,6 @@
 package ma.zoubaa.smartstudyplanner.auth;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import ma.zoubaa.smartstudyplanner.auth.dto.AuthenticationResponse;
 import ma.zoubaa.smartstudyplanner.auth.dto.LoginRequest;
 import ma.zoubaa.smartstudyplanner.auth.dto.RegisterRequest;
@@ -13,10 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService service;
+
+    public AuthController(AuthService service) {
+        this.service = service;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> register(

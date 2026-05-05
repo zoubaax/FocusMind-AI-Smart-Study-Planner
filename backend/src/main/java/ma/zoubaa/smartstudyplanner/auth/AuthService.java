@@ -1,6 +1,5 @@
 package ma.zoubaa.smartstudyplanner.auth;
 
-import lombok.RequiredArgsConstructor;
 import ma.zoubaa.smartstudyplanner.auth.dto.AuthenticationResponse;
 import ma.zoubaa.smartstudyplanner.auth.dto.LoginRequest;
 import ma.zoubaa.smartstudyplanner.auth.dto.RegisterRequest;
@@ -14,7 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository repository;
@@ -22,37 +20,40 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
+    public AuthService(UserRepository repository, PasswordEncoder passwordEncoder, JwtService jwtService, AuthenticationManager authenticationManager) {
+        this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.authenticationManager = authenticationManager;
+    }
+
     public AuthenticationResponse register(RegisterRequest request) {
-        if (repository.findByEmail(request.getEmail()).isPresent()) {
+        if (repository.findByEmail(request.email()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
 
-        var user = User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
-                .build();
+        User user = new User(
+            request.email(),
+            passwordEncoder.encode(request.password()),
+            Role.USER
+        );
 
         repository.save(user);
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .build();
+        String jwtToken = jwtService.generateToken(user);
+        return new AuthenticationResponse(jwtToken);
     }
 
     public AuthenticationResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
+                        request.email(),
+                        request.password()
                 )
         );
 
-        var user = repository.findByEmail(request.getEmail())
+        User user = repository.findByEmail(request.email())
                 .orElseThrow();
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .build();
+        String jwtToken = jwtService.generateToken(user);
+        return new AuthenticationResponse(jwtToken);
     }
 }

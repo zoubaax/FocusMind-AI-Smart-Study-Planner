@@ -24,45 +24,45 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
 
-        ApiException apiException = ApiException.builder()
-                .message("Validation failed")
-                .status(HttpStatus.BAD_REQUEST.value())
-                .timestamp(LocalDateTime.now())
-                .errors(errors)
-                .build();
+        ApiException apiException = new ApiException(
+                "Validation failed",
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now(),
+                errors
+        );
 
         return new ResponseEntity<>(apiException, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiException> handleBadCredentials(BadCredentialsException ex) {
-        ApiException apiException = ApiException.builder()
-                .message("Invalid email or password")
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .timestamp(LocalDateTime.now())
-                .build();
+        ApiException apiException = new ApiException(
+                "Invalid email or password",
+                HttpStatus.UNAUTHORIZED.value(),
+                LocalDateTime.now()
+        );
 
         return new ResponseEntity<>(apiException, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiException> handleRuntimeException(RuntimeException ex) {
-        ApiException apiException = ApiException.builder()
-                .message(ex.getMessage())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .timestamp(LocalDateTime.now())
-                .build();
+        ApiException apiException = new ApiException(
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.value(),
+                LocalDateTime.now()
+        );
 
         return new ResponseEntity<>(apiException, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiException> handleGlobalException(Exception ex) {
-        ApiException apiException = ApiException.builder()
-                .message("An unexpected error occurred")
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .timestamp(LocalDateTime.now())
-                .build();
+        ApiException apiException = new ApiException(
+                "An unexpected error occurred",
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                LocalDateTime.now()
+        );
 
         return new ResponseEntity<>(apiException, HttpStatus.INTERNAL_SERVER_ERROR);
     }
