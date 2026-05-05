@@ -15,6 +15,14 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  ai:
+    openai:
+      base-url: https://integrate.api.nvidia.com/v1
+      api-key: ${NVIDIA_API_KEY}
+      chat:
+        options:
+          model: meta/llama-3.1-70b-instruct
+
 application:
   security:
     jwt:

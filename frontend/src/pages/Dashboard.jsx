@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext';
 import FileUpload from '../components/schedule/FileUpload';
 import ScheduleList from '../components/schedule/ScheduleList';
+import PlanGenerator from '../components/plan/PlanGenerator';
 import StatsGrid from '../components/dashboard/StatsGrid';
 import AIChat from '../components/dashboard/AIChat';
 import scheduleService from '../services/scheduleService';
@@ -25,6 +26,7 @@ const Dashboard = () => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedScheduleForPlan, setSelectedScheduleForPlan] = useState(null);
 
   useEffect(() => {
     fetchSchedules();
@@ -201,7 +203,7 @@ const Dashboard = () => {
                     <p className="text-gray-400">Loading your data...</p>
                   </div>
                 ) : (
-                  <ScheduleList schedules={schedules} />
+                  <ScheduleList schedules={schedules} onGenerate={(s) => setSelectedScheduleForPlan(s)} />
                 )}
               </div>
             } />
@@ -232,9 +234,21 @@ const Dashboard = () => {
           </Routes>
         </div>
       </main>
+
+      {selectedScheduleForPlan && (
+        <PlanGenerator 
+          schedule={selectedScheduleForPlan} 
+          onClose={() => setSelectedScheduleForPlan(null)}
+          onPlanGenerated={(newPlan) => {
+            console.log('Plan generated:', newPlan);
+            // We could update global state here if needed
+          }}
+        />
+      )}
     </div>
   );
 };
+
 
 export default Dashboard;
 

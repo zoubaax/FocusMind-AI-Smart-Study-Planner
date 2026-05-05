@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Download, FileText, Clock } from 'lucide-react';
 
-const ScheduleList = ({ schedules }) => {
+const ScheduleList = ({ schedules, onGenerate }) => {
   if (schedules.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 rounded-2xl">
@@ -22,15 +22,17 @@ const ScheduleList = ({ schedules }) => {
             <div className="p-3 bg-indigo-500/20 rounded-xl group-hover:bg-indigo-500/30 transition-colors">
               <FileText className="w-6 h-6 text-indigo-400" />
             </div>
-            <a 
-              href={schedule.fileUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
-              title="Download/View"
-            >
-              <Download className="w-5 h-5" />
-            </a>
+            <div className="flex items-center gap-2">
+              <a 
+                href={schedule.fileUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+                title="Download/View"
+              >
+                <Download className="w-5 h-5" />
+              </a>
+            </div>
           </div>
 
           <h4 className="text-white font-medium truncate mb-2" title={schedule.fileName}>
@@ -48,10 +50,14 @@ const ScheduleList = ({ schedules }) => {
 
           <div className="mt-4 flex items-center justify-between">
             <span className="px-2 py-1 bg-white/5 rounded text-[10px] uppercase tracking-wider text-gray-400 border border-white/10">
-              {schedule.fileType || 'FILE'}
+              {schedule.fileType?.split('/')[1]?.toUpperCase() || 'FILE'}
             </span>
-            <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
-              Generate Plan →
+            <button 
+              onClick={() => onGenerate && onGenerate(schedule)}
+              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 group/btn"
+            >
+              Generate Plan 
+              <span className="group-hover/btn:translate-x-1 transition-transform">→</span>
             </button>
           </div>
         </div>
@@ -59,5 +65,6 @@ const ScheduleList = ({ schedules }) => {
     </div>
   );
 };
+
 
 export default ScheduleList;
