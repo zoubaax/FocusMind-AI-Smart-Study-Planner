@@ -13,6 +13,7 @@ Thumbs.db
 
 # Logs
 *.log
+project_context.md
 
 # Environment variables
 .env
