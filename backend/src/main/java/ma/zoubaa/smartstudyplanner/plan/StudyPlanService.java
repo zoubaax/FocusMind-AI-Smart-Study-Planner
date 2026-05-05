@@ -134,13 +134,14 @@ public class StudyPlanService {
     }
 
     /**
-     * For Images: call the NVIDIA Vision API directly via REST.
-     * This bypasses Spring AI's Media API which isn't compatible with NVIDIA's format.
+     * For Images: Two-step AI pipeline.
+     * Step 1: Use Llama 3.2 Vision to READ and DESCRIBE the schedule from the image.
+     * Step 2: Use Llama 3.1 70B (text) to GENERATE a structured JSON study plan from the description.
      */
     private String generateFromImageDirect(Schedule schedule, String goals) throws IOException {
         logger.info("Downloading image from: {}", schedule.getFileUrl());
 
-        // Step 1: Download the image and convert to base64
+        // ── Step 1: Download image and convert to base64 ──
         byte[] imageBytes;
         try (InputStream is = new URL(schedule.getFileUrl()).openStream()) {
             imageBytes = is.readAllBytes();
@@ -151,60 +152,97 @@ public class StudyPlanService {
 
         logger.info("Image downloaded: {} bytes, mime: {}", imageBytes.length, mimeType);
 
-        // Step 2: Build the NVIDIA-compatible request body
-        String userPrompt = String.format("""
-            Analyze this school schedule image carefully. The student's goals are: "%s".
-            
-            Generate a structured study plan in JSON format with:
-            - title: A catchy, motivating title
-            - overview: A brief strategy summary
-            - weeklyPlan: Array of objects, each with "day" and "sessions" (array of {subject, time, topic})
-            - tips: Array of 3 specific productivity tips
-            
-            Return ONLY the raw JSON object. No markdown, no code blocks, no extra text.
-            """, goals);
+        // ── Step 2: Ask Vision model to DESCRIBE the schedule ──
+        String visionPrompt = """
+            You are reading a school schedule/timetable image. 
+            List ALL the information you can see in a structured way:
+            - For each day, list: the time slot, the subject/course name, the professor name, and the room.
+            - Also mention any free/empty slots.
+            Be thorough and accurate. Output plain text, not JSON.
+            """;
 
-        // Build OpenAI-compatible request for NVIDIA NIM
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "meta/llama-3.2-11b-vision-instruct");
-        requestBody.put("max_tokens", 4096);
+        Map<String, Object> visionRequest = new HashMap<>();
+        visionRequest.put("model", "meta/llama-3.2-11b-vision-instruct");
+        visionRequest.put("max_tokens", 2048);
 
-        // Build the content array with text + image
         List<Map<String, Object>> content = new ArrayList<>();
-        content.add(Map.of("type", "text", "text", userPrompt));
-        content.add(Map.of(
-            "type", "image_url",
-            "image_url", Map.of("url", dataUri)
-        ));
+        content.add(Map.of("type", "text", "text", visionPrompt));
+        content.add(Map.of("type", "image_url", "image_url", Map.of("url", dataUri)));
 
         Map<String, Object> message = new HashMap<>();
         message.put("role", "user");
         message.put("content", content);
-        requestBody.put("messages", List.of(message));
+        visionRequest.put("messages", List.of(message));
 
-        // Step 3: Call the NVIDIA API
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(nvidiaApiKey);
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(visionRequest, headers);
 
-        logger.info("Calling NVIDIA Vision API...");
-        ResponseEntity<String> response = restTemplate.exchange(
+        logger.info("Step 1: Calling NVIDIA Vision API to read schedule...");
+        ResponseEntity<String> visionResponse = restTemplate.exchange(
             "https://integrate.api.nvidia.com/v1/chat/completions",
-            HttpMethod.POST,
-            entity,
-            String.class
+            HttpMethod.POST, entity, String.class
         );
 
-        logger.info("NVIDIA API responded with status: {}", response.getStatusCode());
+        JsonNode visionRoot = objectMapper.readTree(visionResponse.getBody());
+        String scheduleDescription = visionRoot.path("choices").get(0).path("message").path("content").asText();
+        logger.info("Vision extracted schedule:\n{}", scheduleDescription);
 
-        // Step 4: Parse the response
-        JsonNode root = objectMapper.readTree(response.getBody());
-        String aiContent = root.path("choices").get(0).path("message").path("content").asText();
+        // ── Step 3: Ask Llama 3.1 70B to generate a structured study plan ──
+        logger.info("Step 2: Calling Llama 3.1 70B to generate structured plan...");
 
-        logger.info("AI response length: {} characters", aiContent.length());
-        return aiContent;
+        String systemPrompt = "You are an expert academic advisor. You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks. Just the raw JSON.";
+        String planPrompt = String.format("""
+            Here is a student's school schedule (extracted from an image):
+            ---
+            %s
+            ---
+            
+            The student's goals: "%s"
+            
+            Generate a study plan as a JSON object with this EXACT structure:
+            {
+              "title": "A catchy motivating title",
+              "overview": "A 2-sentence strategy summary",
+              "weeklyPlan": [
+                {
+                  "day": "Monday",
+                  "sessions": [
+                    {"subject": "Subject Name", "time": "HH:MM - HH:MM", "topic": "What to study"}
+                  ]
+                }
+              ],
+              "tips": ["tip 1", "tip 2", "tip 3"]
+            }
+            
+            IMPORTANT: Use the free gaps in the schedule for study sessions. Do NOT schedule study during class time.
+            Return ONLY the JSON object.
+            """, scheduleDescription, goals);
+
+        // Use direct REST call (same proven approach as vision step)
+        Map<String, Object> textRequest = new HashMap<>();
+        textRequest.put("model", "meta/llama-3.1-70b-instruct");
+        textRequest.put("max_tokens", 4096);
+        textRequest.put("messages", List.of(
+            Map.of("role", "system", "content", systemPrompt),
+            Map.of("role", "user", "content", planPrompt)
+        ));
+
+        HttpEntity<Map<String, Object>> textEntity = new HttpEntity<>(textRequest, headers);
+
+        logger.info("Step 2: Calling Llama 3.1 70B via REST...");
+        ResponseEntity<String> textResponse = restTemplate.exchange(
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            HttpMethod.POST, textEntity, String.class
+        );
+
+        JsonNode textRoot = objectMapper.readTree(textResponse.getBody());
+        String planJson = textRoot.path("choices").get(0).path("message").path("content").asText();
+        logger.info("Llama 3.1 70B plan response length: {} chars", planJson.length());
+
+        return planJson;
     }
 
     private String getMimeTypeFromExtension(String ext) {
