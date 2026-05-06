@@ -3,20 +3,20 @@ import { BarChart3, Clock, CheckCircle2, TrendingUp } from 'lucide-react';
 import taskService from '../../services/taskService';
 
 const StatCard = ({ title, value, subValue, icon: Icon, color }) => (
-  <div className="bg-white/5 border border-white/10 p-6 rounded-[32px] backdrop-blur-xl hover:bg-white/10 transition-all duration-300 group">
+  <div className="bg-white/85 border border-slate-200/60 p-6 rounded-[2rem] backdrop-blur-xl hover:bg-white shadow-xl shadow-slate-200/50 transition-all duration-300 group">
     <div className="flex items-start justify-between mb-4">
-      <div className={`p-3 rounded-2xl ${color} bg-opacity-20`}>
+      <div className={`p-3 rounded-2xl ${color} bg-opacity-10`}>
         <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
       </div>
-      <div className="flex items-center gap-1 text-green-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 text-slate-500 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
         <TrendingUp className="w-4 h-4" />
         Live
       </div>
     </div>
-    <h3 className="text-gray-400 text-sm font-medium mb-1">{title}</h3>
+    <h3 className="text-slate-500 text-sm font-bold mb-1">{title}</h3>
     <div className="flex items-baseline gap-2">
-      <span className="text-3xl font-bold text-white tracking-tight">{value}</span>
-      <span className="text-xs text-gray-500 font-medium">{subValue}</span>
+      <span className="text-3xl font-black text-slate-900 tracking-tight">{value}</span>
+      <span className="text-xs text-slate-400 font-medium">{subValue}</span>
     </div>
   </div>
 );
@@ -60,28 +60,28 @@ const StatsGrid = () => {
       value: taskData.hours,
       subValue: 'planned sessions',
       icon: Clock,
-      color: 'bg-indigo-500',
+      color: 'bg-slate-700',
     },
     {
       title: 'Tasks Completed',
       value: taskData.completed,
       subValue: `/ ${taskData.total} total`,
       icon: CheckCircle2,
-      color: 'bg-emerald-500',
+      color: 'bg-emerald-600',
     },
     {
       title: 'Success Rate',
       value: `${taskData.focus}%`,
       subValue: 'completion score',
       icon: BarChart3,
-      color: 'bg-amber-500',
+      color: 'bg-amber-600',
     },
     {
       title: 'Active Plans',
       value: taskData.total > 0 ? Math.ceil(taskData.total / 10) : 0, // Approx
       subValue: 'linked to schedules',
       icon: TrendingUp,
-      color: 'bg-rose-500',
+      color: 'bg-rose-600',
     },
   ];
 
