@@ -21,7 +21,7 @@ spring:
       api-key: ${NVIDIA_API_KEY}
       chat:
         options:
-          model: meta/llama-3.1-70b-instruct
+          model: meta/llama-3.1-8b-instruct
 
 application:
   security:
