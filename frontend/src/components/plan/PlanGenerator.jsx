@@ -228,6 +228,25 @@ const PlanGenerator = ({ schedule, onClose, onPlanGenerated }) => {
               placeholder="E.g., I want to focus on Math and Physics, reduce my stress, and have free time after 8 PM."
               className="w-full h-32 bg-white border border-slate-200/60 rounded-2xl p-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20 transition-all resize-none shadow-sm"
             />
+            
+            <div className="mt-4">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-black mb-3">Quick Templates</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "Focus on Mobile Dev, Gym daily at 9 PM, and 8 hours of sleep.",
+                  "Prioritize Data Science, 30min morning walk, no study after 7 PM.",
+                  "Intensive Java exam prep, study mostly on weekends, include breaks."
+                ].map((text, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setGoals(text)}
+                    className="text-[11px] font-bold px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:border-slate-900 hover:text-slate-900 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    {text.length > 40 ? text.substring(0, 40) + "..." : text}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {error && (

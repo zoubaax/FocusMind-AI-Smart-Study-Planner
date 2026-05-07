@@ -155,27 +155,37 @@ public class StudyPlanService {
         String systemPrompt = "You are an expert academic advisor. You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks.";
         
         String visionPrompt = String.format("""
-            You are looking at a school schedule image. Your task is to:
-            1. Read the timetable accurately (subjects, times, days).
-            2. Consider the student's goals: "%s"
-            3. Generate a personalized study plan that uses the free time slots in this schedule.
+            You are an expert Study Planner. Look at the attached school schedule image and follow these steps carefully:
             
-            Respond ONLY with a JSON object in this exact format:
+            STEP 1: Analyze the image and identify all BUSY blocks (when the student has school/class).
+            STEP 2: Identify all FREE blocks (empty white boxes in the grid and all evenings after school).
+            STEP 3: Create a personalized STUDY PLAN using ONLY the FREE blocks identified in Step 2.
+            
+            Student's Requirements & Constraints:
+            "%s"
+            
+            RULES:
+            - DO NOT list school classes as study sessions. The plan is only for free time.
+            - You MUST respect every specific goal, hobby, or time constraint mentioned in the "Student's Requirements" above.
+            - Map the subjects mentioned in the requirements to the available free time slots.
+            - Ensure a healthy balance between study and the mentioned personal activities.
+            
+            Respond ONLY with a JSON object in this format:
             {
-              "title": "A motivating title",
-              "overview": "A brief 2-sentence strategy summary",
+              "title": "A custom motivating title",
+              "overview": "How this plan balances school with the student's specific goals.",
               "weeklyPlan": [
                 {
                   "day": "Monday",
                   "sessions": [
-                    {"subject": "Subject Name", "time": "HH:MM - HH:MM", "topic": "Detailed focus topic"}
+                    {"subject": "Topic from Requirements", "time": "HH:MM - HH:MM", "topic": "Detailed focus activity"}
                   ]
                 }
               ],
-              "tips": ["Smart AI tip 1", "Smart AI tip 2", "Smart AI tip 3"]
+              "tips": ["Personalized tip 1", "Personalized tip 2", "Personalized tip 3"]
             }
             
-            IMPORTANT: Do NOT schedule study during class time found in the image. Return ONLY the raw JSON.
+            Return ONLY the raw JSON. No markdown, no text before or after.
             """, goals);
 
         Map<String, Object> visionRequest = new HashMap<>();
