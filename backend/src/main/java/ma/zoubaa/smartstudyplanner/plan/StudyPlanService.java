@@ -5,9 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ma.zoubaa.smartstudyplanner.schedule.Schedule;
 import ma.zoubaa.smartstudyplanner.schedule.ScheduleRepository;
 import ma.zoubaa.smartstudyplanner.user.User;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -104,18 +101,20 @@ public class StudyPlanService {
     }
 
     /**
-     * For PDFs: extract text with PDFBox, then send to the default fast LLM (Llama 3.1 8B).
+     * For PDFs: use text that was extracted at upload time, then send to the LLM.
+     * Falls back to a message if no text was extracted.
      */
     private String generateFromPdf(Schedule schedule, String goals) throws IOException {
-        String extractedText;
-        try (InputStream is = new URL(schedule.getFileUrl()).openStream();
-             PDDocument document = Loader.loadPDF(is.readAllBytes())) {
-            PDFTextStripper stripper = new PDFTextStripper();
-            extractedText = stripper.getText(document);
-        }
-        logger.info("Extracted {} characters from PDF", extractedText.length());
+        String extractedText = schedule.getExtractedText();
 
-        String systemPrompt = "You are an expert academic advisor. Generate a structured study plan in JSON format.";
+        if (extractedText == null || extractedText.isBlank()) {
+            logger.warn("No pre-extracted text found for schedule {}. PDF text may not have been extracted at upload time.", schedule.getId());
+            extractedText = "[No text could be extracted from this PDF. Please re-upload the file.]";
+        }
+
+        logger.info("Using pre-extracted text ({} chars) for plan generation", extractedText.length());
+
+        String systemPrompt = "You are an expert academic advisor. You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no code blocks.";
         String userPrompt = String.format("""
             Student Goals: %s
             Schedule Content (Extracted from PDF):
@@ -126,11 +125,33 @@ public class StudyPlanService {
             Return ONLY the JSON object, no other text.
             """, goals, extractedText);
 
-        return chatClient.prompt()
-                .system(systemPrompt)
-                .user(userPrompt)
-                .call()
-                .content();
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", "meta/llama-3.1-8b-instruct");
+        requestBody.put("messages", List.of(
+            Map.of("role", "system", "content", systemPrompt),
+            Map.of("role", "user", "content", userPrompt)
+        ));
+        requestBody.put("temperature", 0.2);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(nvidiaApiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            logger.info("Calling NVIDIA API for PDF-based plan generation...");
+            ResponseEntity<String> response = restTemplate.exchange(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                HttpMethod.POST, entity, String.class
+            );
+
+            JsonNode root = objectMapper.readTree(response.getBody());
+            return root.path("choices").get(0).path("message").path("content").asText();
+        } catch (Exception e) {
+            logger.error("NVIDIA API call failed for PDF: {}", e.getMessage());
+            throw new RuntimeException("AI generation failed: " + e.getMessage());
+        }
     }
 
     /**

@@ -17,6 +17,9 @@ public class Schedule {
     private String publicId; // Cloudinary public ID
     private String fileType;
 
+    @Column(columnDefinition = "TEXT")
+    private String extractedText; // Pre-extracted text content (for PDFs)
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
@@ -53,6 +56,9 @@ public class Schedule {
 
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
+
+    public String getExtractedText() { return extractedText; }
+    public void setExtractedText(String extractedText) { this.extractedText = extractedText; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

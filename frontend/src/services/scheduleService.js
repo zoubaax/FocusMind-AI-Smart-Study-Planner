@@ -17,6 +17,11 @@ const scheduleService = {
     const response = await api.get('/schedules');
     return response.data;
   },
+
+  delete: async (id) => {
+    const response = await api.delete(`/schedules/${id}`);
+    return response.data;
+  },
 };
 
 export default scheduleService;

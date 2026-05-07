@@ -48,4 +48,13 @@ public class ScheduleController {
             ))
             .collect(Collectors.toList()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user
+    ) {
+        service.deleteSchedule(id, user.getId());
+        return ResponseEntity.noContent().build();
+    }
 }
