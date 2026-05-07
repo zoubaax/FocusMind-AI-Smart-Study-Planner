@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Calendar, Download, FileText, Clock, Stars, 
+  Calendar, Download, FileText, Clock, Sparkles, 
   ChevronRight, Eye, MoreVertical, Trash2, 
   Share2, Star, BarChart3, CheckCircle2,
   FileArchive, FileSpreadsheet, FileImage, File,
-  LayoutGrid, List, Search, Filter
+  LayoutGrid, List, Search, Filter, X,
+  TrendingUp, Clock as ClockIcon, HardDrive
 } from 'lucide-react';
 
 const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
@@ -13,14 +14,15 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [menuOpen, setMenuOpen] = useState(null);
+  const [filterType, setFilterType] = useState('all');
 
   const getFileIcon = (fileType) => {
-    if (!fileType) return <FileText className="w-6 h-6" />;
-    if (fileType.includes('pdf')) return <FileText className="w-6 h-6 text-red-600" />;
-    if (fileType.includes('sheet') || fileType.includes('excel')) return <FileSpreadsheet className="w-6 h-6 text-emerald-600" />;
-    if (fileType.includes('image')) return <FileImage className="w-6 h-6 text-blue-600" />;
-    if (fileType.includes('zip') || fileType.includes('archive')) return <FileArchive className="w-6 h-6 text-amber-600" />;
-    return <FileText className="w-6 h-6 text-slate-700" />;
+    if (!fileType) return <FileText className="w-5 h-5" />;
+    if (fileType.includes('pdf')) return <FileText className="w-5 h-5 text-red-500" />;
+    if (fileType.includes('sheet') || fileType.includes('excel')) return <FileSpreadsheet className="w-5 h-5 text-emerald-500" />;
+    if (fileType.includes('image')) return <FileImage className="w-5 h-5 text-blue-500" />;
+    if (fileType.includes('zip') || fileType.includes('archive')) return <FileArchive className="w-5 h-5 text-amber-500" />;
+    return <FileText className="w-5 h-5 text-slate-500" />;
   };
 
   const getFileTypeLabel = (fileType) => {
@@ -32,60 +34,40 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
     return fileType.split('/')[1]?.toUpperCase() || 'FILE';
   };
 
-  const filteredSchedules = schedules.filter(schedule =>
-    schedule.fileName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSchedules = schedules.filter(schedule => {
+    const matchesSearch = schedule.fileName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filterType === 'all' || getFileTypeLabel(schedule.fileType).toLowerCase() === filterType;
+    return matchesSearch && matchesFilter;
+  });
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
+  const fileTypes = ['all', 'pdf', 'sheet', 'image', 'doc'];
 
   if (schedules.length === 0) {
     return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-white/85 backdrop-blur-xl border border-slate-200/60 rounded-[2rem] shadow-xl"
+        className="relative overflow-hidden bg-gradient-to-br from-white to-slate-50/50 border border-slate-200 rounded-2xl shadow-sm"
       >
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-slate-200/50 via-slate-100/30 to-transparent rounded-full blur-3xl"></div>
-        
-        <div className="relative p-12 text-center">
+        <div className="relative p-16 text-center">
           <div className="relative inline-block mb-6">
-            <div className="absolute inset-0 bg-slate-900 rounded-full blur-2xl opacity-20"></div>
-            <div className="relative w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200/60">
-              <Calendar className="w-12 h-12 text-slate-700" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full blur-2xl opacity-20"></div>
+            <div className="relative w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center border border-slate-200 shadow-inner">
+              <Calendar className="w-12 h-12 text-slate-600" />
             </div>
           </div>
           
-          <h3 className="text-2xl font-black text-slate-900 mb-2">No Schedules Yet</h3>
-          <p className="text-slate-500 max-w-md mx-auto mb-6 font-medium">
-            Upload your first schedule to start generating AI-powered study plans
+          <h3 className="text-2xl font-semibold text-slate-900 mb-2">No schedules yet</h3>
+          <p className="text-slate-500 text-sm max-w-md mx-auto mb-8">
+            Upload your first schedule to generate AI-powered study plans
           </p>
           
-          <div className="flex gap-3 justify-center">
-            <div className="px-4 py-2 bg-slate-50 rounded-xl text-sm text-slate-600 flex items-center gap-2 font-semibold border border-slate-200/60">
-              <FileText size={14} />
-              <span>PDF</span>
-            </div>
-            <div className="px-4 py-2 bg-slate-50 rounded-xl text-sm text-slate-600 flex items-center gap-2 font-semibold border border-slate-200/60">
-              <FileSpreadsheet size={14} />
-              <span>Excel</span>
-            </div>
-            <div className="px-4 py-2 bg-slate-50 rounded-xl text-sm text-slate-600 flex items-center gap-2 font-semibold border border-slate-200/60">
-              <FileImage size={14} />
-              <span>Images</span>
-            </div>
+          <div className="flex gap-2 justify-center">
+            {['PDF', 'Excel', 'Images'].map((type) => (
+              <div key={type} className="px-3 py-1.5 bg-white rounded-lg text-xs text-slate-600 border border-slate-200 shadow-sm">
+                {type}
+              </div>
+            ))}
           </div>
         </div>
       </motion.div>
@@ -94,19 +76,19 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats and Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-            Your Schedules
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-semibold text-slate-900">
+            Your schedules
           </h3>
-          <p className="text-slate-500 text-sm font-medium">
-            {filteredSchedules.length} {filteredSchedules.length === 1 ? 'schedule' : 'schedules'} uploaded
+          <p className="text-sm text-slate-500 mt-0.5">
+            {filteredSchedules.length} {filteredSchedules.length === 1 ? 'schedule' : 'schedules'}
           </p>
         </div>
 
-        <div className="flex gap-3">
-          {/* Search Bar */}
+        <div className="flex items-center gap-3">
+          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
@@ -114,21 +96,36 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
               placeholder="Search schedules..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 outline-none transition-all shadow-sm"
+              className="pl-9 pr-3 py-2 w-64 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 transition-all"
             />
           </div>
 
+          {/* Filter Dropdown */}
+          <div className="relative">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10 appearance-none cursor-pointer"
+            >
+              <option value="all">All files</option>
+              <option value="pdf">PDF</option>
+              <option value="sheet">Sheets</option>
+              <option value="image">Images</option>
+              <option value="doc">Documents</option>
+            </select>
+          </div>
+
           {/* View Toggle */}
-          <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl shadow-sm">
+          <div className="flex bg-white border border-slate-200 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <LayoutGrid size={16} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <List size={16} />
             </button>
@@ -136,14 +133,13 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
         </div>
       </div>
 
-      {/* Schedules Grid/List */}
+      {/* Schedules Display */}
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         className={viewMode === 'grid' 
-          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
-          : "space-y-4"
+          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" 
+          : "space-y-3"
         }
       >
         <AnimatePresence mode="popLayout">
@@ -152,7 +148,6 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
               <GridCard
                 key={schedule.id}
                 schedule={schedule}
-                variants={cardVariants}
                 getFileIcon={getFileIcon}
                 getFileTypeLabel={getFileTypeLabel}
                 onGenerate={onGenerate}
@@ -165,7 +160,6 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
               <ListCard
                 key={schedule.id}
                 schedule={schedule}
-                variants={cardVariants}
                 getFileIcon={getFileIcon}
                 getFileTypeLabel={getFileTypeLabel}
                 onGenerate={onGenerate}
@@ -177,84 +171,71 @@ const ScheduleList = ({ schedules, onGenerate, onDelete, onShare }) => {
         </AnimatePresence>
       </motion.div>
 
-      {/* No Results State */}
+      {/* No Results */}
       {filteredSchedules.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12 bg-white/85 rounded-2xl border border-slate-200/60 shadow-sm"
+          className="text-center py-12 bg-white rounded-xl border border-slate-200"
         >
-          <Search className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-500 font-medium">No schedules match your search</p>
+          <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-500 text-sm">No schedules match your search</p>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setFilterType('all');
+            }}
+            className="mt-3 text-sm text-slate-600 hover:text-slate-900 font-medium"
+          >
+            Clear filters
+          </button>
         </motion.div>
       )}
     </div>
   );
 };
 
-// Grid Card Component
-const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerate, onDelete, onShare, menuOpen, setMenuOpen }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  
+// Modern Grid Card Component
+const GridCard = ({ schedule, getFileIcon, getFileTypeLabel, onGenerate, onDelete, onShare, menuOpen, setMenuOpen }) => {
   return (
     <motion.div
-      variants={variants}
       layout
-      initial="hidden"
-      animate="visible"
-      exit={{ opacity: 0, scale: 0.9 }}
-      whileHover={{ y: -4 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      className="group relative bg-white border border-slate-200/60 rounded-2xl overflow-hidden transition-all duration-300 hover:border-slate-900/30 hover:shadow-2xl hover:shadow-slate-200/50"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="group relative bg-white border border-slate-200 rounded-xl hover:shadow-lg hover:border-slate-300 transition-all duration-200"
     >
-      {/* Background Gradient Effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-100/0 via-slate-50/0 to-transparent group-hover:from-slate-100/50 group-hover:via-slate-50/30 transition-all duration-500"></div>
-      
-      {/* Premium Badge (optional - for featured schedules) */}
-      {schedule.isFeatured && (
-        <div className="absolute top-4 right-4 z-10">
-          <div className="px-2 py-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg text-[10px] font-bold text-white flex items-center gap-1 shadow-lg">
-            <Star size={10} />
-            Featured
-          </div>
-        </div>
-      )}
-
       {/* Card Content */}
-      <div className="relative p-6">
-        {/* Header */}
+      <div className="p-5">
+        {/* Top Section */}
         <div className="flex items-start justify-between mb-4">
-          <div className="relative">
-            <div className="absolute inset-0 bg-slate-900 rounded-xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-            <div className="relative p-3 bg-slate-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
-              {getFileIcon(schedule.fileType)}
-            </div>
+          <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+            {getFileIcon(schedule.fileType)}
           </div>
           
           <div className="relative">
             <button
               onClick={() => setMenuOpen(menuOpen === schedule.id ? null : schedule.id)}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
             >
-              <MoreVertical className="w-4 h-4 text-slate-500" />
+              <MoreVertical className="w-4 h-4 text-slate-400" />
             </button>
             
-            {/* Dropdown Menu */}
             <AnimatePresence>
               {menuOpen === schedule.id && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/60 rounded-xl shadow-2xl overflow-hidden z-20"
+                  className="absolute right-0 mt-2 w-44 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-20"
                 >
                   <button
                     onClick={() => {
                       window.open(schedule.fileUrl, '_blank');
                       setMenuOpen(null);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors font-medium"
+                    className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Eye size={14} />
                     Preview
@@ -262,7 +243,7 @@ const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
                   <a
                     href={schedule.fileUrl}
                     download
-                    className="block px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors font-medium"
+                    className="block px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Download size={14} />
                     Download
@@ -273,7 +254,7 @@ const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
                         onShare(schedule);
                         setMenuOpen(null);
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors font-medium"
+                      className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                     >
                       <Share2 size={14} />
                       Share
@@ -285,7 +266,7 @@ const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
                         onDelete(schedule);
                         setMenuOpen(null);
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors border-t border-slate-200/60 font-medium"
+                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 border-t border-slate-100"
                     >
                       <Trash2 size={14} />
                       Delete
@@ -300,39 +281,36 @@ const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
         {/* File Info */}
         <div className="mb-4">
           <h4 
-            className="text-slate-900 font-black mb-2 line-clamp-2 group-hover:text-slate-700 transition-colors"
+            className="text-slate-900 font-medium mb-2 line-clamp-2 text-sm"
             title={schedule.fileName}
           >
             {schedule.fileName}
           </h4>
           
-          <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
-            <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <Clock className="w-3 h-3" />
+            <span>
               {new Date(schedule.createdAt).toLocaleDateString(undefined, {
-                year: 'numeric',
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                year: 'numeric'
               })}
-            </div>
-            <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-            <div className="flex items-center gap-1">
-              <FileText className="w-3 h-3" />
-              {getFileTypeLabel(schedule.fileType)}
-            </div>
+            </span>
+            <span>•</span>
+            <span>{getFileTypeLabel(schedule.fileType)}</span>
           </div>
         </div>
 
         {/* Stats (optional) */}
         {schedule.stats && (
-          <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200/60">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-500 font-semibold">Pages</span>
-              <span className="text-slate-900 font-bold">{schedule.stats.pages || 0}</span>
+          <div className="mb-4 p-2.5 bg-slate-50 rounded-lg text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500">Pages</span>
+              <span className="text-slate-700 font-medium">{schedule.stats.pages || 0}</span>
             </div>
-            <div className="flex justify-between text-xs mt-1">
-              <span className="text-slate-500 font-semibold">Size</span>
-              <span className="text-slate-900 font-bold">{schedule.stats.size || 'N/A'}</span>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-slate-500">Size</span>
+              <span className="text-slate-700 font-medium">{schedule.stats.size || 'N/A'}</span>
             </div>
           </div>
         )}
@@ -340,60 +318,54 @@ const GridCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
         {/* Action Button */}
         <button
           onClick={() => onGenerate && onGenerate(schedule)}
-          className="relative w-full mt-2 py-2.5 bg-slate-100 border border-slate-200/60 rounded-xl text-slate-700 text-sm font-bold hover:bg-slate-900 hover:text-white hover:border-transparent transition-all duration-300 group/btn flex items-center justify-center gap-2 overflow-hidden shadow-sm"
+          className="w-full py-2 bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg text-white text-sm font-medium hover:from-slate-800 hover:to-slate-700 transition-all flex items-center justify-center gap-2 shadow-sm"
         >
-          <span className="relative z-10 flex items-center gap-2">
-            <Stars size={14} className="group-hover/btn:rotate-12 transition-transform" />
-            Generate AI Plan
-            <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
-          </span>
+          <Sparkles size={14} />
+          Generate plan
+          <ChevronRight size={14} />
         </button>
       </div>
-
-      {/* Hover Border Effect */}
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
     </motion.div>
   );
 };
 
-// List Card Component
-const ListCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerate, onDelete, onShare }) => {
+// Modern List Card Component
+const ListCard = ({ schedule, getFileIcon, getFileTypeLabel, onGenerate, onDelete, onShare }) => {
   return (
     <motion.div
-      variants={variants}
       layout
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      className="group relative bg-white border border-slate-200/60 rounded-2xl p-4 hover:border-slate-900/30 hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300"
+      className="group bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md hover:border-slate-300 transition-all"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Icon */}
-        <div className="p-2.5 bg-slate-100 rounded-xl">
+        <div className="p-2 bg-slate-50 rounded-lg flex-shrink-0">
           {getFileIcon(schedule.fileType)}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
-            <h4 className="text-slate-900 font-bold truncate group-hover:text-slate-700 transition-colors">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="text-slate-900 font-medium text-sm truncate">
               {schedule.fileName}
             </h4>
-            <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600 font-semibold">
+            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600 font-medium flex-shrink-0">
               {getFileTypeLabel(schedule.fileType)}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-3 text-xs text-slate-400">
             <div className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+              <ClockIcon size={12} />
               {new Date(schedule.createdAt).toLocaleDateString()}
             </div>
-            {schedule.stats && (
+            {schedule.stats && schedule.stats.pages && (
               <>
-                <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                <span>•</span>
                 <div className="flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {schedule.stats.pages || 0} pages
+                  <FileText size={12} />
+                  {schedule.stats.pages} pages
                 </div>
               </>
             )}
@@ -401,47 +373,47 @@ const ListCard = ({ schedule, variants, getFileIcon, getFileTypeLabel, onGenerat
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <a
             href={schedule.fileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-colors"
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
             title="Preview"
           >
-            <Eye size={16} />
+            <Eye size={14} />
           </a>
           <a
             href={schedule.fileUrl}
             download
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-colors"
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
             title="Download"
           >
-            <Download size={16} />
+            <Download size={14} />
           </a>
           {onShare && (
             <button
               onClick={() => onShare(schedule)}
-              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-colors"
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
               title="Share"
             >
-              <Share2 size={16} />
+              <Share2 size={14} />
             </button>
           )}
           {onDelete && (
             <button
               onClick={() => onDelete(schedule)}
-              className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+              className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
               title="Delete"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </button>
           )}
           <button
             onClick={() => onGenerate && onGenerate(schedule)}
-            className="px-4 py-2 bg-slate-900 rounded-xl text-white text-sm font-bold hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg"
+            className="ml-2 px-3 py-1.5 bg-slate-900 rounded-lg text-white text-xs font-medium hover:bg-slate-800 transition-all flex items-center gap-1.5"
           >
-            <Stars size={14} />
+            <Sparkles size={12} />
             Generate
           </button>
         </div>
