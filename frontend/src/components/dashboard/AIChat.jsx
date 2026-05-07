@@ -21,6 +21,7 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
+import chatService from '../../services/chatService';
 
 const AIChat = () => {
   const [messages, setMessages] = useState([
@@ -46,44 +47,28 @@ const AIChat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Mock AI response generation
+  // Real AI response generation via backend
   const generateAIResponse = async (userMessage) => {
-    setIsTyping(true);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const responses = {
-      default: "I understand you're asking about \"{topic}\". Based on your study patterns, I recommend breaking this down into smaller, manageable sessions. Would you like me to create a focused study plan for this?",
-      greeting: "Great to connect with you! I'm here to help optimize your study sessions. What subject are you focusing on right now?",
-      schedule: "I've analyzed your current schedule. You have {tasks} tasks remaining today. Would you like me to help prioritize them?",
-      help: "I can assist with:\n• Creating study schedules\n• Explaining concepts\n• Setting reminders\n• Tracking progress\n• Providing study tips\n\nWhat specific help do you need?"
-    };
-    
-    let response = responses.default;
-    if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
-      response = responses.greeting;
-    } else if (userMessage.toLowerCase().includes('schedule') || userMessage.toLowerCase().includes('plan')) {
-      response = responses.schedule;
-    } else if (userMessage.toLowerCase().includes('help')) {
-      response = responses.help;
+    try {
+      setIsTyping(true);
+      const response = await chatService.sendMessage(userMessage);
+      setIsTyping(false);
+      return response;
+    } catch (err) {
+      setIsTyping(false);
+      return "I'm sorry, I'm having trouble connecting to my brain right now. Please check your connection and try again.";
     }
-    
-    response = response.replace("{topic}", userMessage.slice(0, 30));
-    response = response.replace("{tasks}", Math.floor(Math.random() * 5 + 1).toString());
-    
-    setIsTyping(false);
-    return response;
   };
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
 
+    const currentInput = input.trim();
     const userMessage = {
       id: Date.now(),
       role: 'user',
-      content: input.trim(),
+      content: currentInput,
       timestamp: new Date(),
       status: 'sent'
     };
@@ -91,8 +76,8 @@ const AIChat = () => {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     
-    // Generate AI response
-    const aiResponse = await generateAIResponse(userMessage.content);
+    // Generate AI response from backend
+    const aiResponse = await generateAIResponse(currentInput);
     const aiMessage = {
       id: Date.now() + 1,
       role: 'assistant',
