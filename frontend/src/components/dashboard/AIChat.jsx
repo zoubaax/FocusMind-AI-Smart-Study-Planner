@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import chatService from '../../services/chatService';
+import { useVoiceRecorder } from '../../hooks/useVoiceRecorder';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 
@@ -37,7 +38,8 @@ const AIChat = () => {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const { isRecording, startRecording, stopRecording, audioBlob, clearAudio, recordingDuration, visualizerData } = useVoiceRecorder();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -104,6 +106,52 @@ const AIChat = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend(e);
+    }
+  };
+
+  // Handle voice recording submission
+  useEffect(() => {
+    if (audioBlob) {
+      handleVoiceSubmit(audioBlob);
+    }
+  }, [audioBlob]);
+
+  const handleVoiceSubmit = async (blob) => {
+    try {
+      console.log(`Audio blob captured. Size: ${blob.size} bytes. Type: ${blob.type}`);
+      if (blob.size < 2000) {
+        toast.error('Recording too short. Please speak longer and try again.');
+        return;
+      }
+      setIsTranscribing(true);
+      const loadingToast = toast.loading('Transcribing your voice...');
+      
+      const text = await chatService.transcribeAudio(blob);
+      
+      if (text) {
+        setInput(text);
+        toast.success('Voice transcribed!', { id: loadingToast });
+      } else {
+        toast.error('Could not understand the audio', { id: loadingToast });
+      }
+      clearAudio();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to transcribe audio');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      try {
+        await startRecording();
+      } catch (err) {
+        toast.error('Could not access microphone');
+      }
     }
   };
 
@@ -365,18 +413,45 @@ const AIChat = () => {
               >
                 <Paperclip className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => setIsRecording(!isRecording)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isRecording 
-                    ? 'text-red-500 bg-red-50' 
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-                title="Voice input"
-              >
-                <Mic className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {isRecording && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="flex items-end gap-[2px] h-3 w-12">
+                      {[...visualizerData].filter((_, i) => i % 8 === 0).slice(0, 8).map((v, i) => (
+                        <motion.div
+                          key={i}
+                          className="w-1 bg-indigo-500 rounded-full"
+                          animate={{ height: `${Math.max(2, (v / 255) * 12)}px` }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold min-w-[28px]">
+                      {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className={`p-1.5 rounded-lg transition-all relative ${
+                    isRecording 
+                      ? 'text-red-500 bg-red-50 ring-2 ring-red-200' 
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                  title={isRecording ? "Stop recording" : "Voice input"}
+                >
+                  {isRecording && (
+                    <motion.div
+                      layoutId="pulse"
+                      className="absolute inset-0 bg-red-400/20 rounded-lg"
+                      animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+                  {isTranscribing ? <Loader2 className="w-4 h-4 animate-spin text-indigo-500" /> : <Mic className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
           

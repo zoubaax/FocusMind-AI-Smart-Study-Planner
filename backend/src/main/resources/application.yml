@@ -39,6 +39,8 @@ spring:
       chat:
         options:
           model: meta/llama-3.1-8b-instruct
+    groq:
+      api-key: ${GROQ_API_KEY}
 
 application:
   security:
