@@ -3,13 +3,13 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { getDashboardStats, toggleTask } from '../../api/tasks';
-import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout } from 'lucide-react-native';
+import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout, LogOut } from 'lucide-react-native';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 
 import { DashboardSkeleton } from '../../components/Skeleton';
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, onLogout } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -80,42 +80,60 @@ export default function DashboardScreen() {
       >
         <View className="px-6 pt-8 pb-10">
           {/* Header */}
-          <View className="mb-8">
-            <Text className="text-slate-500 text-lg">Welcome back,</Text>
-            <Text className="text-3xl font-bold text-slate-900">{user?.firstname}! 👋</Text>
+          <View className="flex-row justify-between items-center mb-10">
+            <View>
+              <Text className="text-slate-500 text-base font-medium">Good Morning,</Text>
+              <Text className="text-3xl font-bold text-slate-900 tracking-tight">
+                {user?.firstName || 'Student'}! 👋
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => onLogout()}
+              className="bg-white w-12 h-12 rounded-2xl border border-slate-100 shadow-sm items-center justify-center"
+            >
+              <LogOut size={22} color="#ef4444" />
+            </TouchableOpacity>
           </View>
 
           {/* Stats Grid */}
-          <View className="flex-row flex-wrap justify-between mb-8">
-            <View className="w-[48%] bg-white p-5 rounded-3xl mb-4 shadow-sm border border-slate-100">
-              <View className="bg-blue-50 w-10 h-10 rounded-xl items-center justify-center mb-4">
-                <Layout size={20} color="#3b82f6" />
+          <View className="flex-row space-x-4 mb-8">
+            <View className="flex-1 bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+              <View className="bg-blue-50 w-12 h-12 rounded-2xl items-center justify-center mb-4">
+                <Layout size={24} color="#3b82f6" />
               </View>
-              <Text className="text-slate-500 text-sm mb-1">Total Tasks</Text>
-              <Text className="text-2xl font-bold text-slate-900">{stats?.totalTasks || 0}</Text>
+              <Text className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Tasks</Text>
+              <Text className="text-3xl font-bold text-slate-900">{stats?.totalTasks || 0}</Text>
             </View>
 
-            <View className="w-[48%] bg-white p-5 rounded-3xl mb-4 shadow-sm border border-slate-100">
-              <View className="bg-green-50 w-10 h-10 rounded-xl items-center justify-center mb-4">
-                <Trophy size={20} color="#22c55e" />
+            <View className="flex-1 bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+              <View className="bg-green-50 w-12 h-12 rounded-2xl items-center justify-center mb-4">
+                <Trophy size={24} color="#22c55e" />
               </View>
-              <Text className="text-slate-500 text-sm mb-1">Completed</Text>
-              <Text className="text-2xl font-bold text-slate-900">{stats?.completedTasks || 0}</Text>
+              <Text className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Done</Text>
+              <Text className="text-3xl font-bold text-slate-900">{stats?.completedTasks || 0}</Text>
             </View>
           </View>
 
           {/* Progress Card */}
-          <View className="bg-primary-600 p-6 rounded-3xl mb-10 shadow-lg shadow-primary-500/30">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-lg font-bold">Daily Progress</Text>
-              <Text className="text-white text-2xl font-bold">{stats?.progress}%</Text>
+          <View className="bg-primary-600 p-8 rounded-[40px] mb-10 shadow-2xl shadow-primary-500/40 overflow-hidden">
+            <View className="flex-row justify-between items-center mb-6">
+              <View>
+                <Text className="text-primary-100 text-sm font-bold uppercase tracking-widest mb-1">Your Progress</Text>
+                <Text className="text-white text-3xl font-extrabold">Daily Goal</Text>
+              </View>
+              <View className="bg-primary-500/30 px-4 py-2 rounded-2xl">
+                <Text className="text-white text-xl font-black">{stats?.progress}%</Text>
+              </View>
             </View>
-            <View className="h-2 bg-primary-400/30 rounded-full overflow-hidden">
-              <Animated.View 
+            <View className="w-full h-3 bg-primary-400/30 rounded-full overflow-hidden">
+              <View 
                 className="h-full bg-white rounded-full" 
-                style={{ width: `${stats?.progress}%` }} 
+                style={{ width: `${Math.max(stats?.progress || 0, 5)}%` }} 
               />
             </View>
+            <Text className="text-primary-100 mt-4 font-medium italic">
+              {stats?.progress >= 100 ? "You're a rockstar! 🌟" : "Keep going, you're doing great! 🚀"}
+            </Text>
           </View>
 
           {/* Today's Tasks */}

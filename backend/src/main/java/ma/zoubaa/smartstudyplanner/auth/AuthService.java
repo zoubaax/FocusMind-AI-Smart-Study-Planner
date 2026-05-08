@@ -37,6 +37,8 @@ public class AuthService {
             passwordEncoder.encode(request.password()),
             Role.USER
         );
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
 
         repository.save(user);
         String jwtToken = jwtService.generateToken(user);

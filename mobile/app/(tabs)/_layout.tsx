@@ -6,14 +6,19 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: '#0284c7', // Primary 600
         tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: '#f1f5f9',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
+          height: 90,
+          paddingBottom: 30,
+          paddingTop: 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
         },
         headerStyle: {
           backgroundColor: '#fff',
@@ -33,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'AI Assistant',
+          title: 'AI Chat',
           tabBarIcon: ({ color }) => <MessageSquare size={24} color={color} />,
         }}
       />
