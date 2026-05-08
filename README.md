@@ -1,6 +1,6 @@
 # 🧠 FocusMind AI — Smart Study Planner
 
-An AI-powered full-stack study planner that analyzes your school schedule (PDF or image) and generates a personalized weekly study plan using **NVIDIA Llama AI models**. Built with **Spring Boot** and **React**.
+An AI-powered full-stack study planner that analyzes your school schedule (PDF or image), generates personalized study plans, creates smart flashcards from course PDFs, and supports **voice commands in Arabic/Darija**. Powered by **NVIDIA Llama AI**, **Groq Whisper**, **Spring Boot**, and **React**.
 
 ---
 
@@ -13,6 +13,8 @@ An AI-powered full-stack study planner that analyzes your school schedule (PDF o
 - **✅ Task Management** — Activate a generated plan to turn it into a daily task list with progress tracking.
 - **💬 AI Chat Agent** — Context-aware AI assistant that knows your schedules, tasks, and study progress. Powered by conversational memory.
 - **📧 AI Email Assistant** — Ask the AI to draft and send real emails on your behalf. Uses a 2-phase "Draft → Confirm → Send" protocol.
+- **🃏 AI Flashcard Generator** — Upload course PDFs, and the AI automatically generates Q&A flashcards. Study them in an immersive 3D flip-card interface with progress tracking.
+- **🎙️ AI Voice Commands** — Speak to the AI in **Arabic, Darija, French, or English**. Voice is transcribed in real-time using **Groq Whisper v3** with a live audio visualizer.
 - **📊 Dashboard Analytics** — Overview of your schedules, active plans, and task completion stats.
 - **🔐 JWT Authentication** — Secure user registration and login with stateless JWT tokens.
 
@@ -25,8 +27,9 @@ FocusMind-AI-Smart-Study-Planner/
 ├── backend/          # Spring Boot REST API (Java 17)
 │   ├── src/main/java/ma/zoubaa/smartstudyplanner/
 │   │   ├── auth/          # Authentication (login, register)
-│   │   ├── chat/          # AI Chat Agent (ChatService, ChatController)
+│   │   ├── chat/          # AI Chat Agent, Voice Transcription
 │   │   ├── exception/     # Global exception handling
+│   │   ├── flashcard/     # AI Flashcard Generator (CRUD + AI)
 │   │   ├── mail/          # Email service (SMTP integration)
 │   │   ├── plan/          # AI study plan generation
 │   │   ├── schedule/      # File upload & Cloudinary integration
@@ -38,20 +41,26 @@ FocusMind-AI-Smart-Study-Planner/
 │   ├── Dockerfile
 │   └── pom.xml
 │
-└── frontend/         # React SPA (Vite)
-    ├── src/
-    │   ├── api/            # Axios instance & interceptors
-    │   ├── components/
-    │   │   ├── auth/       # ProtectedRoute
-    │   │   ├── common/     # Reusable form elements
-    │   │   ├── dashboard/  # StatsGrid, TaskList, AIChat
-    │   │   ├── plan/       # PlanGenerator modal
-    │   │   └── schedule/   # FileUpload, ScheduleList
-    │   ├── context/        # AuthContext (JWT state management)
-    │   ├── pages/          # Login, Register, Dashboard
-    │   └── services/       # API service layer
-    ├── index.html
-    └── package.json
+├── frontend/         # React SPA (Vite)
+│   ├── src/
+│   │   ├── api/            # Axios instance & interceptors
+│   │   ├── components/
+│   │   │   ├── auth/       # ProtectedRoute
+│   │   │   ├── common/     # Reusable form elements
+│   │   │   ├── dashboard/  # StatsGrid, TaskList, AIChat
+│   │   │   ├── flashcard/  # FlipCard, StudySession, PDFUploadZone
+│   │   │   ├── plan/       # PlanGenerator modal
+│   │   │   └── schedule/   # FileUpload, ScheduleList
+│   │   ├── context/        # AuthContext (JWT state management)
+│   │   ├── hooks/          # useVoiceRecorder (audio capture)
+│   │   ├── pages/          # Login, Register, Dashboard, Flashcards
+│   │   └── services/       # API service layer
+│   ├── index.html
+│   └── package.json
+│
+└── docs/             # Project documentation
+    ├── ARCHITECTURE.md
+    └── WORKFLOW.md
 ```
 
 ---
@@ -89,12 +98,13 @@ FocusMind-AI-Smart-Study-Planner/
 | **React Hot Toast** | 2.6 | Toast notification system |
 | **React Markdown** | — | Renders AI responses with rich formatting |
 
-### AI Models (via NVIDIA NIM)
+### AI Models & Services
 
-| Model | Use Case |
-|---|---|
-| **Meta Llama 3.1 8B Instruct** | PDF text analysis → study plan generation, AI Chat Agent |
-| **Meta Llama 3.2 11B Vision Instruct** | Image schedule reading → study plan generation |
+| Model / Service | Provider | Use Case |
+|---|---|---|
+| **Meta Llama 3.1 8B Instruct** | NVIDIA NIM | PDF analysis, study plans, AI Chat, flashcard generation |
+| **Meta Llama 3.2 11B Vision** | NVIDIA NIM | Image schedule reading → visual plan generation |
+| **Whisper Large v3** | Groq | Voice-to-text transcription (Arabic, Darija, French, English) |
 
 ---
 
@@ -105,6 +115,7 @@ FocusMind-AI-Smart-Study-Planner/
 - **PostgreSQL** (running locally or remotely)
 - **Cloudinary account** (free tier works) — [cloudinary.com](https://cloudinary.com)
 - **NVIDIA NIM API Key** — [build.nvidia.com](https://build.nvidia.com)
+- **Groq API Key** (free) — [console.groq.com](https://console.groq.com)
 
 ---
 
@@ -147,6 +158,9 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 # NVIDIA AI Configuration
 NVIDIA_API_KEY=nvapi-your_key_here
+
+# Groq Configuration (Voice Transcription)
+GROQ_API_KEY=gsk_your_key_here
 
 # Mail Configuration (Gmail or Mailtrap)
 MAIL_HOST=smtp.gmail.com
@@ -239,10 +253,20 @@ The app will be available at `http://localhost:5173`.
 | `POST` | `/api/tasks/activate/{planId}` | Convert a study plan into daily tasks |
 | `PATCH` | `/api/tasks/{id}/toggle` | Toggle a task's completion status |
 
-### AI Chat
+### AI Chat & Voice
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/chat` | Send a message to the AI agent (supports conversation history) |
+| `POST` | `/api/ai/transcribe` | Transcribe audio file to text via Groq Whisper v3 |
+
+### Flashcards
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/flashcards/materials` | Get all uploaded course materials |
+| `POST` | `/api/flashcards/upload` | Upload a course PDF for flashcard generation |
+| `POST` | `/api/flashcards/generate/{materialId}` | Generate AI flashcards from a material |
+| `GET` | `/api/flashcards/{materialId}` | Get all flashcards for a material |
+| `DELETE` | `/api/flashcards/materials/{id}` | Delete a course material and its flashcards |
 
 ### User
 | Method | Endpoint | Description |
@@ -324,6 +348,34 @@ User: "Yes, send it."
 - The `ChatController` acts as an **interceptor**: it scans every AI response for the tag, extracts the JSON payload, calls the `EmailService`, and **strips the tag** so the user never sees it.
 - Emails are sent via `Spring Boot Starter Mail` using `JavaMailSender` with SMTP (Gmail or Mailtrap).
 - The system uses a **"Central Assistant" model**: one SMTP account sends on behalf of all users. The user's identity is included in the email body for context.
+
+### AI Flashcard Generator
+```
+Upload Course PDF → Cloudinary stores file → PDFBox extracts text
+→ User clicks "Generate Flashcards" → Extracted text sent to Llama 3.1 8B
+→ AI returns JSON array of {question, answer} pairs
+→ Flashcards saved to database → Immersive 3D study session with flip animations
+```
+
+**Key Technical Details:**
+- AI prompt enforces strict **JSON-only output** for reliable parsing.
+- 3D flip cards built with **Framer Motion** `rotateY` transforms and `backfaceVisibility`.
+- Progress tracking shows percentage of cards studied per session.
+
+### AI Voice Agent
+```
+User clicks Mic → Browser MediaRecorder captures audio (WebM/Opus)
+→ Live audio visualizer shows frequency bars in real-time
+→ User clicks Mic again → Audio blob sent to POST /api/ai/transcribe
+→ Backend forwards to Groq Whisper v3 API → Transcribed text returned
+→ Text injected into chat input → User can send to AI agent
+```
+
+**Key Technical Details:**
+- Uses **Groq Whisper v3** (free tier) for high-quality multilingual transcription.
+- Supports **Moroccan Darija**, Arabic, French, and English.
+- Real-time **Audio Analyzer** (Web Audio API) provides visual feedback via frequency bars.
+- Recording captured with **MediaRecorder API** using `audio/webm;codecs=opus`.
 
 ---
 
