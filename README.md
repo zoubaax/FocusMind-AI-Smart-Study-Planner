@@ -11,7 +11,8 @@ An AI-powered full-stack study planner that analyzes your school schedule (PDF o
   - **PDF** schedules: Text is extracted with PDFBox and sent to **Llama 3.1 8B** for plan generation.
   - **Image** schedules: The image is sent to **Llama 3.2 11B Vision** which visually reads the timetable and generates a plan in one call.
 - **✅ Task Management** — Activate a generated plan to turn it into a daily task list with progress tracking.
-- **💬 AI Chat Assistant** — Chat with an AI assistant for study help and advice.
+- **💬 AI Chat Agent** — Context-aware AI assistant that knows your schedules, tasks, and study progress. Powered by conversational memory.
+- **📧 AI Email Assistant** — Ask the AI to draft and send real emails on your behalf. Uses a 2-phase "Draft → Confirm → Send" protocol.
 - **📊 Dashboard Analytics** — Overview of your schedules, active plans, and task completion stats.
 - **🔐 JWT Authentication** — Secure user registration and login with stateless JWT tokens.
 
@@ -24,7 +25,9 @@ FocusMind-AI-Smart-Study-Planner/
 ├── backend/          # Spring Boot REST API (Java 17)
 │   ├── src/main/java/ma/zoubaa/smartstudyplanner/
 │   │   ├── auth/          # Authentication (login, register)
+│   │   ├── chat/          # AI Chat Agent (ChatService, ChatController)
 │   │   ├── exception/     # Global exception handling
+│   │   ├── mail/          # Email service (SMTP integration)
 │   │   ├── plan/          # AI study plan generation
 │   │   ├── schedule/      # File upload & Cloudinary integration
 │   │   ├── security/      # JWT, CORS, Spring Security config
@@ -63,6 +66,7 @@ FocusMind-AI-Smart-Study-Planner/
 | **Spring Boot** | 3.4.0 | Application framework |
 | **Spring Security** | — | Authentication & authorization |
 | **Spring Data JPA** | — | Database ORM (Hibernate) |
+| **Spring Boot Starter Mail** | — | SMTP email sending (Gmail, Mailtrap) |
 | **Spring AI** | 1.0.0-M3 | AI model integration (OpenAI-compatible) |
 | **PostgreSQL** | — | Relational database |
 | **JJWT** | 0.11.5 | JWT token generation & validation |
@@ -83,12 +87,13 @@ FocusMind-AI-Smart-Study-Planner/
 | **Axios** | 1.16 | HTTP client for API calls |
 | **Lucide React** | 1.14 | Icon library |
 | **React Hot Toast** | 2.6 | Toast notification system |
+| **React Markdown** | — | Renders AI responses with rich formatting |
 
 ### AI Models (via NVIDIA NIM)
 
 | Model | Use Case |
 |---|---|
-| **Meta Llama 3.1 8B Instruct** | PDF text analysis → study plan generation |
+| **Meta Llama 3.1 8B Instruct** | PDF text analysis → study plan generation, AI Chat Agent |
 | **Meta Llama 3.2 11B Vision Instruct** | Image schedule reading → study plan generation |
 
 ---
@@ -142,7 +147,17 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 # NVIDIA AI Configuration
 NVIDIA_API_KEY=nvapi-your_key_here
+
+# Mail Configuration (Gmail or Mailtrap)
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_app_password
 ```
+
+> **Gmail users:** You must generate a [Google App Password](https://myaccount.google.com/apppasswords) (requires 2-Step Verification). Do **not** use your regular password.
+>
+> **For safe testing:** Use [Mailtrap.io](https://mailtrap.io) with `MAIL_HOST=sandbox.smtp.mailtrap.io` and `MAIL_PORT=2525`.
 
 **Create the PostgreSQL database:**
 
@@ -224,6 +239,11 @@ The app will be available at `http://localhost:5173`.
 | `POST` | `/api/tasks/activate/{planId}` | Convert a study plan into daily tasks |
 | `PATCH` | `/api/tasks/{id}/toggle` | Toggle a task's completion status |
 
+### AI Chat
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/chat` | Send a message to the AI agent (supports conversation history) |
+
 ### User
 | Method | Endpoint | Description |
 |---|---|---|
@@ -268,6 +288,43 @@ Upload Image → Cloudinary stores file → User clicks "Generate Plan"
             → AI reads the schedule visually → JSON study plan returned
 ```
 
+### AI Chat Agent (Context-Aware)
+```
+User sends message → Frontend sends message + conversation history
+→ ChatController receives request → ChatService builds context:
+   • Fetches user's schedules from ScheduleRepository
+   • Fetches user's pending tasks from StudyTaskRepository
+   • Injects context into the system prompt
+   • Appends last 10 messages of conversation history
+→ Full prompt sent to Llama 3.1 8B via NVIDIA NIM API
+→ AI responds with context-aware answer
+```
+
+**Key Technical Details:**
+- The AI receives a **system prompt** containing the user's real data (schedules, tasks) on every request.
+- **Conversation history** (last 10 messages) is sent alongside each new message, giving the AI "memory" within a session.
+- The temperature is set to **0.1** for precise, instruction-following behavior.
+- Uses **RestTemplate** for direct HTTP calls to the NVIDIA NIM `/v1/chat/completions` endpoint (OpenAI-compatible format).
+
+### AI Email Assistant (Agentic Action)
+```
+User: "Draft an email to prof@example.com about my progress"
+→ AI generates a formatted email draft (Subject + Body)
+→ AI asks: "Should I send this email?"
+
+User: "Yes, send it."
+→ AI outputs a hidden action tag: [[SEND_EMAIL:{"to":"...","subject":"...","body":"..."}]]
+→ ChatController intercepts the tag before it reaches the frontend
+→ Tag is parsed → EmailService.sendSimpleEmail() is called via SMTP
+→ Tag is stripped from the response → User sees "✅ Email sent successfully"
+```
+
+**Key Technical Details:**
+- Uses a **structured action tag** (`[[SEND_EMAIL:...]]`) embedded in the AI's response to trigger backend side-effects.
+- The `ChatController` acts as an **interceptor**: it scans every AI response for the tag, extracts the JSON payload, calls the `EmailService`, and **strips the tag** so the user never sees it.
+- Emails are sent via `Spring Boot Starter Mail` using `JavaMailSender` with SMTP (Gmail or Mailtrap).
+- The system uses a **"Central Assistant" model**: one SMTP account sends on behalf of all users. The user's identity is included in the email body for context.
+
 ---
 
 ## 📁 Key Libraries Explained
@@ -278,13 +335,15 @@ Upload Image → Cloudinary stores file → User clicks "Generate Plan"
 | **Spring Boot Starter Data JPA** | ORM layer using Hibernate to interact with PostgreSQL without writing SQL |
 | **Spring Boot Starter Security** | Enables authentication, authorization, and security filter chains |
 | **Spring Boot Starter Validation** | Bean validation for request DTOs (`@NotBlank`, `@Email`, etc.) |
-| **Spring AI (OpenAI Starter)** | Provides `ChatClient` abstraction for AI model communication (used for the chat feature) |
+| **Spring Boot Starter Mail** | Sends emails via SMTP (Gmail, Mailtrap). Used by the AI Email Assistant |
+| **Spring AI (OpenAI Starter)** | Provides `ChatClient` abstraction for AI model communication |
 | **JJWT (Java JWT)** | Generates and validates JWT tokens for stateless authentication |
 | **PDFBox** | Extracts text content from uploaded PDF files for AI analysis |
 | **Cloudinary SDK** | Uploads, stores, and manages files (images/PDFs) in the cloud |
 | **dotenv-java** | Loads environment variables from `.env` files during development |
 | **Axios** | Promise-based HTTP client with request/response interceptors for JWT injection |
 | **React Router DOM** | Declarative client-side routing with protected route support |
+| **React Markdown** | Renders AI chat responses with rich Markdown formatting (bold, lists, blockquotes) |
 | **Framer Motion** | Smooth page transitions, modal animations, and micro-interactions |
 | **Tailwind CSS** | Utility-first CSS for rapid, consistent UI styling |
 | **Lucide React** | Clean, minimal SVG icon set used throughout the UI |
