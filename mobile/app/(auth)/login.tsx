@@ -22,6 +22,7 @@ export default function LoginScreen() {
     try {
       const data = await login(email, password);
       await onLogin(data.token, data.user);
+      // AuthContext will handle redirection automatically
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

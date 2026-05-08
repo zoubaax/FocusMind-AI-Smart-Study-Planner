@@ -17,29 +17,32 @@ export const AuthProvider = ({ children }) => {
 
   // Protect routes logic
   useEffect(() => {
+    // Wait until the initial check is complete
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!user && !inAuthGroup) {
-      // Redirect to login if not logged in and not in auth pages
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      // Redirect to home if logged in and trying to access auth pages
+    const inAuthGroup = segments.some(s => s === '(auth)' || s === 'login' || s === 'register');
+    
+    if (user && inAuthGroup) {
       router.replace('/(tabs)');
+    } else if (!user && !inAuthGroup) {
+      router.replace('/(auth)/login');
     }
   }, [user, segments, loading]);
 
   const checkLogin = async () => {
     try {
+      setLoading(true);
       const token = await SecureStore.getItemAsync('user_token');
       if (token) {
         const userData = await getMe();
         setUser(userData);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error('Session expired or error:', error);
       await SecureStore.deleteItemAsync('user_token');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -47,12 +50,24 @@ export const AuthProvider = ({ children }) => {
 
   const onLogin = async (token, userData) => {
     await SecureStore.setItemAsync('user_token', token);
-    setUser(userData);
+    
+    // If user data wasn't provided (backend only sent token), fetch it now
+    if (!userData) {
+      try {
+        const profile = await getMe();
+        setUser(profile);
+      } catch (error) {
+        console.error('Failed to fetch profile after login:', error);
+      }
+    } else {
+      setUser(userData);
+    }
   };
 
   const onLogout = async () => {
     await SecureStore.deleteItemAsync('user_token');
     setUser(null);
+    // Let the useEffect handle the redirection
   };
 
   return (

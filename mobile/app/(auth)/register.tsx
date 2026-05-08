@@ -26,6 +26,7 @@ export default function RegisterScreen() {
       // Login automatically after registration
       const data = await login(email, password);
       await onLogin(data.token, data.user);
+      // AuthContext will handle redirection automatically
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please check your details.');
     } finally {
