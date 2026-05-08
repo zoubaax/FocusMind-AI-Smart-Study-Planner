@@ -1,8 +1,8 @@
 import api from '../api/axios';
 
 const chatService = {
-  sendMessage: async (message) => {
-    const response = await api.post('/chat', { message });
+  sendMessage: async (message, history) => {
+    const response = await api.post('/chat', { message, history });
     return response.data.response;
   }
 };

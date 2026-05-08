@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import chatService from '../../services/chatService';
+import { toast } from 'react-hot-toast';
 
 const AIChat = () => {
   const [messages, setMessages] = useState([
@@ -48,10 +49,10 @@ const AIChat = () => {
   }, [messages]);
 
   // Real AI response generation via backend
-  const generateAIResponse = async (userMessage) => {
+  const generateAIResponse = async (userMessage, history) => {
     try {
       setIsTyping(true);
-      const response = await chatService.sendMessage(userMessage);
+      const response = await chatService.sendMessage(userMessage, history);
       setIsTyping(false);
       return response;
     } catch (err) {
@@ -77,7 +78,16 @@ const AIChat = () => {
     setInput('');
     
     // Generate AI response from backend
-    const aiResponse = await generateAIResponse(currentInput);
+    const aiResponse = await generateAIResponse(currentInput, messages);
+    
+    // Check for success confirmation to show toast
+    if (aiResponse.includes('Email sent successfully')) {
+      toast.success('Email sent successfully!', {
+        icon: '📧',
+        duration: 4000
+      });
+    }
+
     const aiMessage = {
       id: Date.now() + 1,
       role: 'assistant',
@@ -317,12 +327,17 @@ const AIChat = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Ask me anything about your studies..."
-              className="w-full px-4 py-2.5 pr-12 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300 transition-all resize-none text-sm text-slate-900 placeholder:text-slate-400"
+              className="w-full px-4 py-2.5 pr-12 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-100 focus:border-slate-200 resize-none text-sm text-slate-900 placeholder:text-slate-400"
               rows={1}
               style={{ minHeight: '44px', maxHeight: '120px' }}
               onInput={(e) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                const target = e.target;
+                if (target.value === '') {
+                  target.style.height = '44px';
+                } else {
+                  target.style.height = 'auto';
+                  target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+                }
               }}
             />
             <div className="absolute right-2 bottom-2 flex gap-1">

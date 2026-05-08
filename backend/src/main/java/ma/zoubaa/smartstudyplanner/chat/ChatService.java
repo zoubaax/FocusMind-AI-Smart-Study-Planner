@@ -41,7 +41,7 @@ public class ChatService {
         this.objectMapper = new ObjectMapper();
     }
 
-    public String chat(String userMessage, User user) {
+    public String chat(String userMessage, List<Map<String, String>> history, User user) {
         List<Schedule> schedules = scheduleRepository.findAllByUserId(user.getId());
         List<StudyTask> tasks = taskRepository.findByUser_Id(user.getId());
 
@@ -61,14 +61,32 @@ public class ChatService {
             - User: %s
             - Uploaded Schedules:
             %s
-            
             - Pending Tasks for Today:
             %s
             
-            Instructions:
-            1. Be encouraging, professional, and concise.
-            2. Use the provided context to answer questions about their schedule or tasks.
-            3. Suggest study techniques like Pomodoro if they seem overwhelmed.
+            STRICT EMAIL PROTOCOL:
+            1. If the user asks to send an email, you MUST first provide a DRAFT using this format:
+               ### 📧 Email Draft
+               **To**: `recipient@email.com`
+               **Subject**: *Subject Here*
+               ---
+               **Body**:
+               > [Body Content]
+               ---
+               "Should I send this email?"
+            
+            2. DO NOT include the action tag in the draft phase.
+            
+            3. Once the user says "Yes", "Send it", "Confirm", or similar, you MUST output a confirmation message followed IMMEDIATELY by this EXACT tag:
+               [[SEND_EMAIL:{"to":"...", "subject":"...", "body":"..."}]]
+            
+            4. IMPORTANT: NEVER mention the "tag" or "secret code" to the user. Just say "Sending email..." and include the tag. The user should never see the tag.
+            
+            5. If you have already shown a draft and the user confirms, DO NOT draft it again. Just send the tag.
+            
+            GENERAL RULES:
+            - Be professional and concise.
+            - Use the context provided to answer questions.
             """, 
             user.getEmail(), 
             scheduleInfo.isEmpty() ? "No schedules uploaded yet." : scheduleInfo,
@@ -82,13 +100,27 @@ public class ChatService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(apiKey);
 
+            // Build full message list including history
+            java.util.List<Map<String, String>> messages = new java.util.ArrayList<>();
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+            
+            // Add history (limiting to last 10 messages for efficiency)
+            if (history != null) {
+                history.stream()
+                    .filter(m -> m.get("content") != null && m.get("role") != null)
+                    .skip(Math.max(0, history.size() - 10))
+                    .forEach(m -> {
+                        messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
+                    });
+            }
+            
+            // Add current user message
+            messages.add(Map.of("role", "user", "content", userMessage));
+
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("model", "meta/llama-3.1-8b-instruct");
-            requestBody.put("messages", List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", userMessage)
-            ));
-            requestBody.put("temperature", 0.5);
+            requestBody.put("messages", messages);
+            requestBody.put("temperature", 0.1);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);

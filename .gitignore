@@ -10,7 +10,7 @@
 # OS files
 .DS_Store
 Thumbs.db
-
+docs/
 # Logs
 *.log
 project_context.md
