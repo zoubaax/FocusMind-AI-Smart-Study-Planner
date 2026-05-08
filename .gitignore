@@ -10,11 +10,16 @@
 # OS files
 .DS_Store
 Thumbs.db
-docs/
+# docs/
 # Logs
 *.log
+
 project_context.md
 implementation_plan.md
+docs/*_context.md
+docs/*_plan.md
+docs/eraser_diagram.md
+
 # Environment variables
 .env
 .env.local
