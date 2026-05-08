@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import chatService from '../../services/chatService';
 import { toast } from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
 
 const AIChat = () => {
   const [messages, setMessages] = useState([
@@ -164,9 +165,25 @@ const AIChat = () => {
                 ? 'bg-slate-800 text-white rounded-tr-sm' 
                 : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm shadow-sm'
             }`}>
-              <div className="whitespace-pre-wrap break-words">
-                {message.content}
-              </div>
+              {message.role === 'user' ? (
+                <div className="whitespace-pre-wrap break-words">
+                  {message.content}
+                </div>
+              ) : (
+                <div className="prose prose-sm prose-slate max-w-none
+                  [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-slate-800 [&_h3]:mt-0 [&_h3]:mb-2
+                  [&_strong]:text-slate-700 [&_strong]:font-semibold
+                  [&_em]:text-slate-500 [&_em]:not-italic [&_em]:font-medium
+                  [&_hr]:my-2 [&_hr]:border-slate-200
+                  [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:text-slate-600 [&_blockquote]:italic [&_blockquote]:my-1
+                  [&_p]:my-1 [&_p]:text-slate-700 [&_p]:leading-relaxed
+                  [&_code]:bg-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-slate-600 [&_code]:text-xs
+                  [&_ul]:my-1 [&_ul]:pl-4 [&_li]:text-slate-700 [&_li]:my-0.5
+                  [&_ol]:my-1 [&_ol]:pl-4
+                ">
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+              )}
               
               {/* Timestamp */}
               <div className={`text-[10px] mt-1.5 ${

@@ -65,15 +65,16 @@ public class ChatService {
             %s
             
             STRICT EMAIL PROTOCOL:
-            1. If the user asks to send an email, you MUST first provide a DRAFT using this format:
-               ### 📧 Email Draft
-               **To**: `recipient@email.com`
-               **Subject**: *Subject Here*
-               ---
-               **Body**:
-               > [Body Content]
-               ---
-               "Should I send this email?"
+            1. If the user asks to send an email, you MUST first provide a DRAFT using this EXACT format:
+               
+               📧 **Email Draft**
+               
+               **To:** recipient@email.com
+               **Subject:** The Subject Line
+               
+               > Body content goes here as a blockquote. Write the full email body inside a blockquote block.
+               
+               Would you like me to send this email?
             
             2. DO NOT include the action tag in the draft phase.
             
