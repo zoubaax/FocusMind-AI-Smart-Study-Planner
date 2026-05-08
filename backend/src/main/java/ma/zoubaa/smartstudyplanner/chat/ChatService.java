@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Service
 public class ChatService {
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
-    
+
     private final ScheduleRepository scheduleRepository;
     private final StudyTaskRepository taskRepository;
     private final RestTemplate restTemplate;
@@ -33,11 +33,17 @@ public class ChatService {
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
 
-    public ChatService(ScheduleRepository scheduleRepository, 
-                       StudyTaskRepository taskRepository) {
+    public ChatService(ScheduleRepository scheduleRepository,
+            StudyTaskRepository taskRepository) {
         this.scheduleRepository = scheduleRepository;
         this.taskRepository = taskRepository;
-        this.restTemplate = new RestTemplate();
+        
+        // IMPORTANT: NVIDIA free tier can take up to 90s — do NOT reduce this
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(120000);
+        this.restTemplate = new RestTemplate(factory);
+        
         this.objectMapper = new ObjectMapper();
     }
 
@@ -51,52 +57,26 @@ public class ChatService {
 
         String taskInfo = tasks.stream()
                 .filter(t -> !t.isCompleted())
-                .map(t -> "- " + t.getTopic() + " (" + t.getSubject() + ") at " + (t.getStartTime() != null ? t.getStartTime().toString() : "TBD"))
+                .map(t -> "- " + t.getTopic() + " (" + t.getSubject() + ") at "
+                        + (t.getStartTime() != null ? t.getStartTime().toString() : "TBD"))
                 .collect(Collectors.joining("\n"));
 
-        String systemPrompt = String.format("""
-            You are the FocusMind AI Study Agent. You help students manage their time and studies.
-            
-            Current User Context:
-            - User: %s
-            - Uploaded Schedules:
-            %s
-            - Pending Tasks for Today:
-            %s
-            
-            STRICT EMAIL PROTOCOL:
-            1. If the user asks to send an email, you MUST first provide a DRAFT using this EXACT format:
-               
-               📧 **Email Draft**
-               
-               **To:** recipient@email.com
-               **Subject:** The Subject Line
-               
-               > Body content goes here as a blockquote. Write the full email body inside a blockquote block.
-               
-               Would you like me to send this email?
-            
-            2. DO NOT include the action tag in the draft phase.
-            
-            3. Once the user says "Yes", "Send it", "Confirm", or similar, you MUST output a confirmation message followed IMMEDIATELY by this EXACT tag:
-               [[SEND_EMAIL:{"to":"...", "subject":"...", "body":"..."}]]
-            
-            4. IMPORTANT: NEVER mention the "tag" or "secret code" to the user. Just say "Sending email..." and include the tag. The user should never see the tag.
-            
-            5. If you have already shown a draft and the user confirms, DO NOT draft it again. Just send the tag.
-            
-            GENERAL RULES:
-            - Be professional and concise.
-            - Use the context provided to answer questions.
-            """, 
-            user.getEmail(), 
-            scheduleInfo.isEmpty() ? "No schedules uploaded yet." : scheduleInfo,
-            taskInfo.isEmpty() ? "No pending tasks for today." : taskInfo
-        );
+        String systemPrompt = String.format(
+                "You are FocusMind AI, a study assistant. User: %s\n" +
+                "Schedules: %s\n" +
+                "Today's tasks: %s\n\n" +
+                "EMAIL RULES:\n" +
+                "1. If asked to email, show a draft: 📧 **Email Draft**\\n**To:** ...\\n**Subject:** ...\\n> body\\nShould I send this?\n" +
+                "2. When user confirms, reply ONLY: Sending email... [[SEND_EMAIL:{\"to\":\"...\",\"subject\":\"...\",\"body\":\"...\"}]]\n" +
+                "3. Never mention the tag. Never redraft after confirmation.\n" +
+                "Be concise.",
+                user.getEmail(),
+                scheduleInfo.isEmpty() ? "None" : scheduleInfo,
+                taskInfo.isEmpty() ? "None" : taskInfo);
 
         try {
             String url = "https://integrate.api.nvidia.com/v1/chat/completions";
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(apiKey);
@@ -104,17 +84,17 @@ public class ChatService {
             // Build full message list including history
             java.util.List<Map<String, String>> messages = new java.util.ArrayList<>();
             messages.add(Map.of("role", "system", "content", systemPrompt));
-            
-            // Add history (limiting to last 10 messages for efficiency)
+
+            // Add history (last 6 messages — enough for draft→confirm flow)
             if (history != null) {
                 history.stream()
-                    .filter(m -> m.get("content") != null && m.get("role") != null)
-                    .skip(Math.max(0, history.size() - 10))
-                    .forEach(m -> {
-                        messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
-                    });
+                        .filter(m -> m.get("content") != null && m.get("role") != null)
+                        .skip(Math.max(0, history.size() - 6))
+                        .forEach(m -> {
+                            messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
+                        });
             }
-            
+
             // Add current user message
             messages.add(Map.of("role", "user", "content", userMessage));
 
@@ -122,6 +102,7 @@ public class ChatService {
             requestBody.put("model", "meta/llama-3.1-8b-instruct");
             requestBody.put("messages", messages);
             requestBody.put("temperature", 0.1);
+            requestBody.put("max_tokens", 1024);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
@@ -131,7 +112,7 @@ public class ChatService {
                 Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                 return (String) message.get("content");
             }
-            
+
             return "I received an empty response from my brain.";
         } catch (Exception e) {
             logger.error("Chat error (Manual API Call): {}", e.getMessage(), e);
