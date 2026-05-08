@@ -7,6 +7,7 @@ import PlanGenerator from '../components/plan/PlanGenerator';
 import StatsGrid from '../components/dashboard/StatsGrid';
 import AIChat from '../components/dashboard/AIChat';
 import TaskList from '../components/dashboard/TaskList';
+import Flashcards from './Flashcards';
 import scheduleService from '../services/scheduleService';
 import { 
   LayoutDashboard, 
@@ -31,7 +32,8 @@ import {
   Bell,
   ChevronRight,
   Menu,
-  Zap
+  Zap,
+  BrainCircuit
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -127,6 +129,7 @@ const Dashboard = () => {
               <NavItem to="/dashboard/schedules" icon={FileText} label="Schedules" />
               <NavItem to="/dashboard/tasks" icon={CheckSquare} label="Daily Tasks" />
               <NavItem to="/dashboard/chat" icon={MessageSquare} label="AI Assistant" />
+              <NavItem to="/dashboard/flashcards" icon={BrainCircuit} label="Study Vault" />
               
               <div className="pt-4 mt-4 border-t border-slate-100">
                 <NavItem to="/dashboard/profile" icon={User} label="Profile" />
@@ -173,6 +176,7 @@ const Dashboard = () => {
                       {activeTab === 'schedules' && 'Study Schedules'}
                       {activeTab === 'tasks' && 'Daily Tasks'}
                       {activeTab === 'chat' && 'AI Assistant'}
+                      {activeTab === 'flashcards' && 'Study Vault'}
                       {activeTab === 'profile' && 'Profile'}
                       {activeTab === 'settings' && 'Settings'}
                       {activeTab === 'help' && 'Help Center'}
@@ -182,6 +186,7 @@ const Dashboard = () => {
                       {activeTab === 'schedules' && 'Manage your uploaded study materials'}
                       {activeTab === 'tasks' && 'Track and complete your daily tasks'}
                       {activeTab === 'chat' && 'Get AI-powered study assistance'}
+                      {activeTab === 'flashcards' && 'AI-generated study materials from your courses'}
                       {activeTab === 'profile' && 'Manage your account information'}
                       {activeTab === 'settings' && 'Customize your experience'}
                       {activeTab === 'help' && 'Get help and support'}
@@ -299,6 +304,8 @@ const Dashboard = () => {
                   <AIChat />
                 </div>
               } />
+
+              <Route path="flashcards" element={<Flashcards />} />
               
               <Route path="profile" element={
                 <div className="max-w-2xl mx-auto">
