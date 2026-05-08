@@ -6,7 +6,7 @@ export const getMaterials = async () => {
 };
 
 export const getFlashcards = async (materialId) => {
-  const response = await apiClient.get(`/flashcards/${materialId}`);
+  const response = await apiClient.get(`/flashcards/material/${materialId}`);
   return response.data;
 };
 

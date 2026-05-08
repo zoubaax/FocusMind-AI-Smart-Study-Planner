@@ -95,18 +95,25 @@ export default function FlashcardsScreen() {
 
       {/* Study Session Modal */}
       <Modal visible={sessionVisible} animationType="slide" presentationStyle="fullScreen">
-        <SafeAreaView className="flex-1 bg-slate-900">
-          <View className="flex-1 px-6 pt-4 pb-10">
-            {/* Modal Header */}
-            <View className="flex-row justify-between items-center mb-10">
-              <View>
-                <Text className="text-white text-2xl font-bold">Study Session</Text>
-                <Text className="text-slate-400">Card {currentIndex + 1} of {currentCards.length}</Text>
+        <View className="flex-1 bg-slate-900">
+          <SafeAreaView className="flex-1" edges={['top', 'bottom']}>
+            <View className="flex-1 px-6 pb-10">
+              {/* Modal Header */}
+              <View className="flex-row justify-between items-center mb-8 pt-4">
+                <View>
+                  <Text className="text-white text-2xl font-bold tracking-tight">Study Session</Text>
+                  <View className="flex-row items-center mt-1">
+                    <View className="w-2 h-2 rounded-full bg-primary-500 mr-2" />
+                    <Text className="text-slate-400 font-medium">Card {currentIndex + 1} of {currentCards.length}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setSessionVisible(false)} 
+                  className="bg-slate-800/50 w-12 h-12 rounded-full items-center justify-center border border-slate-700"
+                >
+                  <X size={24} color="white" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setSessionVisible(false)} className="bg-slate-800 p-2 rounded-full">
-                <X size={24} color="white" />
-              </TouchableOpacity>
-            </View>
 
             {/* Flashcard Area */}
             <View className="flex-1 justify-center">
@@ -146,7 +153,8 @@ export default function FlashcardsScreen() {
             </View>
           </View>
         </SafeAreaView>
-      </Modal>
+      </View>
+    </Modal>
     </SafeAreaView>
   );
 }
