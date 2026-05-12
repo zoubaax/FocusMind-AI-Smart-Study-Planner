@@ -16,6 +16,7 @@ public class Schedule {
     private String fileUrl;
     private String publicId; // Cloudinary public ID
     private String fileType;
+    private String resourceType; // Cloudinary resource type (image, raw, etc.)
 
     @Column(columnDefinition = "TEXT")
     private String extractedText; // Pre-extracted text content (for PDFs)
@@ -56,6 +57,9 @@ public class Schedule {
 
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
+
+    public String getResourceType() { return resourceType; }
+    public void setResourceType(String resourceType) { this.resourceType = resourceType; }
 
     public String getExtractedText() { return extractedText; }
     public void setExtractedText(String extractedText) { this.extractedText = extractedText; }

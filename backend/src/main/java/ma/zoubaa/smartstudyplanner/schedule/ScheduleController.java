@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/schedules")
 public class ScheduleController {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScheduleController.class);
     private final ScheduleService service;
 
     public ScheduleController(ScheduleService service) {
@@ -25,6 +26,7 @@ public class ScheduleController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user
     ) throws IOException {
+        logger.info("Upload request received for user: {}", user.getId());
         Schedule schedule = service.uploadSchedule(file, user);
         return ResponseEntity.ok(new ScheduleResponse(
             schedule.getId(),
@@ -37,6 +39,7 @@ public class ScheduleController {
 
     @GetMapping
     public ResponseEntity<List<ScheduleResponse>> getAll(@AuthenticationPrincipal User user) {
+        logger.info("Get all schedules request for user: {}", user.getId());
         List<Schedule> schedules = service.getUserSchedules(user.getId());
         return ResponseEntity.ok(schedules.stream()
             .map(s -> new ScheduleResponse(
@@ -49,12 +52,13 @@ public class ScheduleController {
             .collect(Collectors.toList()));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{scheduleId}")
     public ResponseEntity<Void> delete(
-            @PathVariable Long id,
+            @PathVariable Long scheduleId,
             @AuthenticationPrincipal User user
     ) {
-        service.deleteSchedule(id, user.getId());
+        logger.info("Delete request for schedule {} from user {}", scheduleId, user.getId());
+        service.deleteSchedule(scheduleId, user.getId());
         return ResponseEntity.noContent().build();
     }
 }

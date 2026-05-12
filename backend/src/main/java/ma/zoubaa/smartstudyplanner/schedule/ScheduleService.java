@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import ma.zoubaa.smartstudyplanner.plan.StudyPlanRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ScheduleService {
@@ -19,10 +21,16 @@ public class ScheduleService {
     private static final Logger logger = LoggerFactory.getLogger(ScheduleService.class);
     private final ScheduleRepository repository;
     private final CloudinaryService cloudinaryService;
+    private final StudyPlanRepository studyPlanRepository;
 
-    public ScheduleService(ScheduleRepository repository, CloudinaryService cloudinaryService) {
+    public ScheduleService(
+            ScheduleRepository repository, 
+            CloudinaryService cloudinaryService,
+            StudyPlanRepository studyPlanRepository
+    ) {
         this.repository = repository;
         this.cloudinaryService = cloudinaryService;
+        this.studyPlanRepository = studyPlanRepository;
     }
 
     public Schedule uploadSchedule(MultipartFile file, User user) throws IOException {
@@ -31,6 +39,7 @@ public class ScheduleService {
         String fileUrl = (String) uploadResult.get("secure_url");
         String publicId = (String) uploadResult.get("public_id");
         String fileType = (String) uploadResult.get("format");
+        String resourceType = (String) uploadResult.get("resource_type");
 
         Schedule schedule = new Schedule(
             file.getOriginalFilename(),
@@ -40,6 +49,8 @@ public class ScheduleService {
             user
         );
 
+        schedule.setResourceType(resourceType);
+        
         // Extract text from PDF at upload time so we never need to re-download from Cloudinary
         if (isPdf(file, fileType)) {
             try {
@@ -71,6 +82,7 @@ public class ScheduleService {
         return repository.findAllByUserId(userId);
     }
 
+    @Transactional
     public void deleteSchedule(Long scheduleId, Long userId) {
         Schedule schedule = repository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found"));
@@ -79,10 +91,14 @@ public class ScheduleService {
             throw new RuntimeException("You are not authorized to delete this schedule");
         }
 
+        // Manually delete associated study plans (this will also delete tasks due to our @OnDelete cascade on tasks)
+        // Or if we want to be 100% sure, we delete tasks then plans
+        studyPlanRepository.deleteAllBySchedule_Id(scheduleId);
+
         // Delete the file from Cloudinary
         if (schedule.getPublicId() != null) {
             try {
-                cloudinaryService.delete(schedule.getPublicId());
+                cloudinaryService.delete(schedule.getPublicId(), schedule.getResourceType());
                 logger.info("Deleted file from Cloudinary: {}", schedule.getPublicId());
             } catch (Exception e) {
                 logger.warn("Failed to delete file from Cloudinary: {}", e.getMessage());

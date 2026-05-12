@@ -86,11 +86,15 @@ export default function ScheduleScreen() {
 
   const handleDelete = async (id) => {
     try {
+      // Optimistic update
+      setSchedules(prev => prev.filter(s => s.id !== id));
+      
       await deleteSchedule(id);
       Toast.show({ type: 'success', text1: 'Deleted', text2: 'Schedule removed successfully.' });
-      fetchSchedules();
     } catch (error) {
+      console.error('Error deleting schedule:', error);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not delete schedule.' });
+      fetchSchedules(); // Rollback
     }
   };
 

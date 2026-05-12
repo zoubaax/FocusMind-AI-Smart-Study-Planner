@@ -23,5 +23,7 @@ export const uploadSchedule = async (fileData) => {
 };
 
 export const deleteSchedule = async (id) => {
-  await apiClient.delete(`/schedules/${id}`);
+  const idStr = String(id).trim();
+  console.log(`Attempting to delete schedule with ID: "${idStr}"`);
+  await apiClient.delete(`/schedules/${idStr}`);
 };

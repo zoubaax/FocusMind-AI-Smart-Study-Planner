@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { getDashboardStats, toggleTask, deleteTask, deleteAllTasks } from '../api/tasks';
 import { CheckCircle2, Circle, Clock, ChevronLeft, Trash2, BookOpen, Trash } from 'lucide-react-native';
 import Animated, { FadeInDown, LinearTransition, FadeInUp } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
-import { Stack } from 'expo-router';
 
 export default function AllTasksScreen() {
   const router = useRouter();
