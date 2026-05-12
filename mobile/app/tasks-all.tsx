@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { getDashboardStats, toggleTask, deleteTask } from '../api/tasks';
-import { CheckCircle2, Circle, Clock, ChevronLeft, Trash2, BookOpen } from 'lucide-react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import { getDashboardStats, toggleTask, deleteTask, deleteAllTasks } from '../api/tasks';
+import { CheckCircle2, Circle, Clock, ChevronLeft, Trash2, BookOpen, Trash } from 'lucide-react-native';
+import Animated, { FadeInDown, LinearTransition, FadeInUp } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
+import { Stack } from 'expo-router';
 
 export default function AllTasksScreen() {
   const router = useRouter();
@@ -51,13 +52,39 @@ export default function AllTasksScreen() {
     }
   };
 
+  const handleClearAll = async () => {
+    try {
+      setTasks([]);
+      await deleteAllTasks();
+      Toast.show({ type: 'success', text1: 'Plan Cleared', text2: 'All tasks have been removed.' });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Clear Failed' });
+      fetchTasks();
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <View className="px-6 pt-4 pb-2 flex-row items-center border-b border-slate-100 bg-white">
-        <TouchableOpacity onPress={() => router.back()} className="p-2 -ml-2">
-          <ChevronLeft size={28} color="#0f172a" />
-        </TouchableOpacity>
-        <Text className="text-2xl font-bold text-slate-900 ml-2">Daily Plan</Text>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      {/* Custom Header */}
+      <View className="px-6 pt-4 pb-6 flex-row items-center justify-between border-b border-slate-100 bg-white">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-slate-50 p-2 rounded-xl mr-3">
+            <ChevronLeft size={24} color="#0f172a" />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold text-slate-900">Daily Plan</Text>
+        </View>
+        
+        {tasks.length > 0 && (
+          <TouchableOpacity 
+            onPress={handleClearAll}
+            className="bg-red-50 px-4 py-2 rounded-xl flex-row items-center"
+          >
+            <Trash size={16} color="#ef4444" />
+            <Text className="text-red-500 font-bold ml-2">Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView 

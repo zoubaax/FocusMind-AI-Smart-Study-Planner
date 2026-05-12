@@ -14,6 +14,10 @@ export const deleteTask = async (taskId) => {
   await apiClient.delete(`/tasks/${taskId}`);
 };
 
+export const deleteAllTasks = async () => {
+  await apiClient.delete('/tasks/all');
+};
+
 export const getDashboardStats = async () => {
   // We can derive stats from tasks or call a specific stats endpoint if it exists
   // For now, let's assume we can get basic counts from existing endpoints

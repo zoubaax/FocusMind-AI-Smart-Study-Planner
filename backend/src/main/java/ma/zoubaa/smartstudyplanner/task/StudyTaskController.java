@@ -44,6 +44,12 @@ public class StudyTaskController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/all")
+    public ResponseEntity<Void> deleteAllTasks(@AuthenticationPrincipal User user) {
+        service.deleteAllUserTasks(user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{taskId}/toggle")
     public ResponseEntity<StudyTask> toggleTask(@PathVariable Long taskId) {
         return ResponseEntity.ok(service.toggleTaskCompletion(taskId));

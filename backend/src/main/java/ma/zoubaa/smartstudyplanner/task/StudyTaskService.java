@@ -105,6 +105,11 @@ public class StudyTaskService {
     }
 
     @Transactional
+    public void deleteAllUserTasks(Long userId) {
+        repository.deleteByUser_Id(userId);
+    }
+
+    @Transactional
     public StudyTask toggleTaskCompletion(Long taskId) {
         StudyTask task = repository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));

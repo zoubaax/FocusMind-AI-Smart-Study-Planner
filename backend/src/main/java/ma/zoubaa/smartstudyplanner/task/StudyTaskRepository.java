@@ -8,4 +8,5 @@ public interface StudyTaskRepository extends JpaRepository<StudyTask, Long> {
     List<StudyTask> findByUser_Id(Long userId);
     List<StudyTask> findByUser_IdAndStartTimeBetween(Long userId, LocalDateTime start, LocalDateTime end);
     List<StudyTask> findByStudyPlan_Id(Long planId);
+    void deleteByUser_Id(Long userId);
 }
