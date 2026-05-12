@@ -13,6 +13,8 @@ import { uploadSchedule, getSchedules } from '../../api/schedules';
 
 import { DashboardSkeleton } from '../../components/Skeleton';
 
+import { useFocusEffect } from 'expo-router';
+
 export default function DashboardScreen() {
   const { user, onLogout } = useAuth();
   const router = useRouter();
@@ -33,13 +35,11 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => {
-    if (user) {
+  useFocusEffect(
+    useCallback(() => {
       fetchStats();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+    }, [user])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

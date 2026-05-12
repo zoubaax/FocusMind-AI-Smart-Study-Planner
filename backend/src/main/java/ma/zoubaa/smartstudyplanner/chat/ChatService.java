@@ -66,7 +66,7 @@ public class ChatService {
                 "Schedules: %s\n" +
                 "Today's tasks: %s\n\n" +
                 "EMAIL RULES:\n" +
-                "1. If asked to email, show a draft: 📧 **Email Draft**\\n**To:** ...\\n**Subject:** ...\\n> body\\nShould I send this?\n" +
+                "1. If asked to email, show a draft: 📧 **Email Draft**\\n**To:** ...\\n**Subject:** ...\n> body\\nShould I send this?\n" +
                 "2. When user confirms, reply ONLY: Sending email... [[SEND_EMAIL:{\"to\":\"...\",\"subject\":\"...\",\"body\":\"...\"}]]\n" +
                 "3. Never mention the tag. Never redraft after confirmation.\n" +
                 "Be concise.",
@@ -74,49 +74,59 @@ public class ChatService {
                 scheduleInfo.isEmpty() ? "None" : scheduleInfo,
                 taskInfo.isEmpty() ? "None" : taskInfo);
 
-        try {
-            String url = "https://integrate.api.nvidia.com/v1/chat/completions";
+        // Build full message list including history
+        java.util.List<Map<String, String>> messages = new java.util.ArrayList<>();
+        messages.add(Map.of("role", "system", "content", systemPrompt));
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
-
-            // Build full message list including history
-            java.util.List<Map<String, String>> messages = new java.util.ArrayList<>();
-            messages.add(Map.of("role", "system", "content", systemPrompt));
-
-            // Add history (last 6 messages — enough for draft→confirm flow)
-            if (history != null) {
-                history.stream()
-                        .filter(m -> m.get("content") != null && m.get("role") != null)
-                        .skip(Math.max(0, history.size() - 6))
-                        .forEach(m -> {
-                            messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
-                        });
-            }
-
-            // Add current user message
-            messages.add(Map.of("role", "user", "content", userMessage));
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "meta/llama-3.1-8b-instruct");
-            requestBody.put("messages", messages);
-            requestBody.put("temperature", 0.1);
-            requestBody.put("max_tokens", 1024);
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-
-            if (response.getBody() != null && response.getBody().containsKey("choices")) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
-                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                return (String) message.get("content");
-            }
-
-            return "I received an empty response from my brain.";
-        } catch (Exception e) {
-            logger.error("Chat error (Manual API Call): {}", e.getMessage(), e);
-            return "I'm sorry, I'm having trouble connecting to my brain. Error: " + e.getMessage();
+        if (history != null) {
+            history.stream()
+                    .filter(m -> m.get("content") != null && m.get("role") != null)
+                    .skip(Math.max(0, history.size() - 6))
+                    .forEach(m -> {
+                        messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
+                    });
         }
+
+        messages.add(Map.of("role", "user", "content", userMessage));
+
+        // Try fast model first, fall back to larger model if degraded
+        String[] models = {"meta/llama-3.1-8b-instruct", "meta/llama-3.3-70b-instruct"};
+
+        for (String model : models) {
+            try {
+                logger.info("Trying chat model: {}", model);
+                String result = callNvidiaApi(model, messages);
+                if (result != null) return result;
+            } catch (Exception e) {
+                logger.warn("Model {} failed: {}. Trying next...", model, e.getMessage());
+            }
+        }
+
+        return "I'm sorry, all AI models are currently unavailable. Please try again in a few minutes.";
+    }
+
+    private String callNvidiaApi(String model, List<Map<String, String>> messages) {
+        String url = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", model);
+        requestBody.put("messages", messages);
+        requestBody.put("temperature", 0.1);
+        requestBody.put("max_tokens", 1024);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+
+        if (response.getBody() != null && response.getBody().containsKey("choices")) {
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");
+            Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+            return (String) message.get("content");
+        }
+
+        return null;
     }
 }

@@ -191,33 +191,40 @@ public class StudyPlanService {
             Return ONLY the JSON object, no other text.
             """, goals, extractedText);
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "meta/llama-3.1-8b-instruct");
-        requestBody.put("messages", List.of(
+        List<Map<String, Object>> messages = List.of(
             Map.of("role", "system", "content", systemPrompt),
             Map.of("role", "user", "content", userPrompt)
-        ));
-        requestBody.put("temperature", 0.2);
+        );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(nvidiaApiKey);
+        String[] models = {"meta/llama-3.1-8b-instruct", "meta/llama-3.3-70b-instruct"};
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+        for (String model : models) {
+            try {
+                logger.info("Trying PDF plan model: {}", model);
 
-        try {
-            logger.info("Calling NVIDIA API for PDF-based plan generation...");
-            ResponseEntity<String> response = restTemplate.exchange(
-                "https://integrate.api.nvidia.com/v1/chat/completions",
-                HttpMethod.POST, entity, String.class
-            );
+                Map<String, Object> requestBody = new HashMap<>();
+                requestBody.put("model", model);
+                requestBody.put("messages", messages);
+                requestBody.put("temperature", 0.2);
 
-            JsonNode root = objectMapper.readTree(response.getBody());
-            return root.path("choices").get(0).path("message").path("content").asText();
-        } catch (Exception e) {
-            logger.error("NVIDIA API call failed for PDF: {}", e.getMessage());
-            throw new RuntimeException("AI generation failed: " + e.getMessage());
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setBearerAuth(nvidiaApiKey);
+
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+                ResponseEntity<String> response = restTemplate.exchange(
+                    "https://integrate.api.nvidia.com/v1/chat/completions",
+                    HttpMethod.POST, entity, String.class
+                );
+
+                JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("choices").get(0).path("message").path("content").asText();
+            } catch (Exception e) {
+                logger.warn("Model {} failed for PDF: {}. Trying next...", model, e.getMessage());
+            }
         }
+
+        throw new RuntimeException("All AI models are currently unavailable.");
     }
 
     /**
@@ -275,40 +282,49 @@ public class StudyPlanService {
             Return ONLY the raw JSON. No markdown, no text before or after.
             """, goals);
 
-        Map<String, Object> visionRequest = new HashMap<>();
-        visionRequest.put("model", "meta/llama-3.2-11b-vision-instruct");
-        visionRequest.put("max_tokens", 4096);
-        visionRequest.put("temperature", 0.2); // Low temperature for better JSON structure
-
         List<Map<String, Object>> content = new ArrayList<>();
         content.add(Map.of("type", "text", "text", visionPrompt));
         content.add(Map.of("type", "image_url", "image_url", Map.of("url", dataUri)));
 
-        Map<String, Object> message = new HashMap<>();
-        message.put("role", "user");
-        message.put("content", content);
+        Map<String, Object> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", content);
         
         Map<String, Object> systemMessage = Map.of("role", "system", "content", systemPrompt);
-        
-        visionRequest.put("messages", List.of(systemMessage, message));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(nvidiaApiKey);
+        String[] models = {"meta/llama-3.2-11b-vision-instruct", "meta/llama-3.2-90b-vision-instruct"};
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(visionRequest, headers);
+        for (String model : models) {
+            try {
+                logger.info("Trying Vision model: {}", model);
 
-        logger.info("Calling NVIDIA Vision API for single-step plan generation...");
-        ResponseEntity<String> response = restTemplate.exchange(
-            "https://integrate.api.nvidia.com/v1/chat/completions",
-            HttpMethod.POST, entity, String.class
-        );
+                Map<String, Object> visionRequest = new HashMap<>();
+                visionRequest.put("model", model);
+                visionRequest.put("max_tokens", 4096);
+                visionRequest.put("temperature", 0.2);
+                visionRequest.put("messages", List.of(systemMessage, userMessage));
 
-        JsonNode root = objectMapper.readTree(response.getBody());
-        String planJson = root.path("choices").get(0).path("message").path("content").asText();
-        
-        logger.info("Vision plan response received (length: {} chars)", planJson.length());
-        return planJson;
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setBearerAuth(nvidiaApiKey);
+
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(visionRequest, headers);
+                ResponseEntity<String> response = restTemplate.exchange(
+                    "https://integrate.api.nvidia.com/v1/chat/completions",
+                    HttpMethod.POST, entity, String.class
+                );
+
+                JsonNode root = objectMapper.readTree(response.getBody());
+                String planJson = root.path("choices").get(0).path("message").path("content").asText();
+                
+                logger.info("Vision plan response received (length: {} chars)", planJson.length());
+                return planJson;
+            } catch (Exception e) {
+                logger.warn("Vision model {} failed: {}. Trying next...", model, e.getMessage());
+            }
+        }
+
+        throw new RuntimeException("All vision AI models are currently unavailable.");
     }
 
     private String getMimeTypeFromExtension(String ext) {
