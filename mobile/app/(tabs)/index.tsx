@@ -3,8 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { getDashboardStats, toggleTask } from '../../api/tasks';
-import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout, LogOut } from 'lucide-react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout, LogOut, Calendar, Plus, Upload, Image as ImageIcon, FileText } from 'lucide-react-native';
+import Animated, { FadeInDown, LinearTransition, BounceIn } from 'react-native-reanimated';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import Toast from 'react-native-toast-message';
+import { uploadSchedule, getSchedules } from '../../api/schedules';
 
 import { DashboardSkeleton } from '../../components/Skeleton';
 
@@ -61,6 +65,68 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('Error toggling task:', error);
       fetchStats(); // Rollback on error
+    }
+  };
+
+  const handleUploadImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setLoading(true);
+        const asset = result.assets[0];
+        await uploadSchedule({
+          uri: asset.uri,
+          name: asset.fileName || 'schedule.jpg',
+          type: asset.mimeType || 'image/jpeg',
+        });
+        
+        Toast.show({
+          type: 'success',
+          text1: 'Schedule Uploaded',
+          text2: 'Your image timetable is now synchronized.',
+        });
+        fetchStats();
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      Toast.show({ type: 'error', text1: 'Upload Failed' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadPDF = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setLoading(true);
+        const asset = result.assets[0];
+        await uploadSchedule({
+          uri: asset.uri,
+          name: asset.name,
+          type: 'application/pdf',
+        });
+        
+        Toast.show({
+          type: 'success',
+          text1: 'PDF Schedule Uploaded',
+          text2: 'Your timetable has been saved.',
+        });
+        fetchStats();
+      }
+    } catch (err) {
+      console.error('PDF upload error:', err);
+      Toast.show({ type: 'error', text1: 'Upload Failed' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,7 +203,7 @@ export default function DashboardScreen() {
           </View>
 
           {/* Today's Tasks */}
-          <View>
+          <View className="mb-10">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold text-slate-900">Today's Tasks</Text>
               <TouchableOpacity onPress={onRefresh}>
@@ -192,7 +258,36 @@ export default function DashboardScreen() {
               )}
             </View>
           </View>
-        </View>
+
+          {/* My Schedule / Emplois */}
+          <View className="mb-10">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-xl font-bold text-slate-900">My Schedule</Text>
+              <View className="flex-row space-x-2">
+                <TouchableOpacity 
+                  onPress={handleUploadImage}
+                  className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"
+                >
+                  <ImageIcon size={20} color="#64748b" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handleUploadPDF}
+                  className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm"
+                >
+                  <FileText size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View className="bg-white p-8 rounded-[32px] items-center border border-dashed border-slate-200">
+              <Calendar size={40} color="#cbd5e1" />
+              <Text className="text-slate-400 mt-4 text-center">
+                Upload your timetable (PDF or Image) to keep it handy!
+              </Text>
+            </View>
+          </View>
+
+          </View>
       </ScrollView>
     </SafeAreaView>
   );

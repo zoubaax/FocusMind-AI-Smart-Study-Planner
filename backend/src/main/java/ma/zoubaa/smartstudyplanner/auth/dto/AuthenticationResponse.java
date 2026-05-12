@@ -1,3 +1,6 @@
 package ma.zoubaa.smartstudyplanner.auth.dto;
 
-public record AuthenticationResponse(String token) {}
+public record AuthenticationResponse(
+    String token,
+    UserResponse user
+) {}

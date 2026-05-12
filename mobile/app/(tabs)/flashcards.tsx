@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getMaterials, getFlashcards, generateFlashcards } from '../../api/flashcards';
-import { BookOpen, Brain, ChevronRight, X, Sparkles, GraduationCap } from 'lucide-react-native';
+import { getMaterials, getFlashcards, generateFlashcards, uploadMaterial } from '../../api/flashcards';
+import { BookOpen, Brain, ChevronRight, X, Sparkles, GraduationCap, Plus, FileText, Upload } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import Toast from 'react-native-toast-message';
 import Flashcard from '../../components/Flashcard';
-import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight, BounceIn } from 'react-native-reanimated';
 
 export default function FlashcardsScreen() {
   const [materials, setMaterials] = useState([]);
@@ -30,6 +32,46 @@ export default function FlashcardsScreen() {
     fetchMaterials();
   }, []);
 
+  const handleUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        setLoading(true);
+        
+        const formData = new FormData();
+        formData.append('file', {
+          uri: file.uri,
+          name: file.name,
+          type: 'application/pdf',
+        } as any);
+
+        await uploadMaterial(formData);
+        
+        Toast.show({
+          type: 'success',
+          text1: 'Upload Successful',
+          text2: 'Course material added to your vault.',
+        });
+        
+        fetchMaterials();
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Failed',
+        text2: 'Could not upload the course material.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const startStudySession = async (materialId) => {
     try {
       const cards = await getFlashcards(materialId);
@@ -37,9 +79,22 @@ export default function FlashcardsScreen() {
         setCurrentCards(cards);
         setCurrentIndex(0);
         setSessionVisible(true);
+      } else {
+        // Automatically trigger generation if no cards exist
+        Toast.show({
+          type: 'info',
+          text1: 'Generating Cards',
+          text2: 'We are creating flashcards for you...',
+        });
+        await handleGenerate(materialId);
       }
     } catch (error) {
       console.error('Error starting session:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Session Error',
+        text2: 'Could not load flashcards.',
+      });
     }
   };
 
@@ -47,8 +102,18 @@ export default function FlashcardsScreen() {
     try {
       await generateFlashcards(materialId);
       fetchMaterials();
+      Toast.show({
+        type: 'success',
+        text1: 'Generation Complete',
+        text2: 'Flashcards are ready for study!',
+      });
     } catch (error) {
       console.error('Error generating cards:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Generation Failed',
+        text2: 'AI could not process this material.',
+      });
     }
   };
 
@@ -68,23 +133,29 @@ export default function FlashcardsScreen() {
             {materials.length === 0 && !loading ? (
               <View className="bg-white p-10 rounded-3xl items-center border border-dashed border-slate-200">
                 <GraduationCap size={48} color="#cbd5e1" />
-                <Text className="text-slate-400 mt-4 text-center text-lg">No course materials yet. Upload a PDF on the web to get started!</Text>
+                <Text className="text-slate-400 mt-4 text-center text-lg">No course materials yet. Tap + to upload a PDF!</Text>
               </View>
             ) : (
               materials.map((item, index) => (
-                <Animated.View key={item.id} entering={FadeInUp.delay(index * 100)}>
+                <Animated.View key={item.id} entering={FadeInUp.delay(index * 100)} className="mb-4">
                   <TouchableOpacity 
                     onPress={() => startStudySession(item.id)}
-                    className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex-row items-center"
+                    className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm flex-row items-center"
+                    style={{ elevation: 2 }}
                   >
-                    <View className="bg-primary-50 w-12 h-12 rounded-2xl items-center justify-center mr-4">
-                      <BookOpen size={24} color="#0284c7" />
+                    <View className="bg-primary-50 w-14 h-14 rounded-2xl items-center justify-center mr-4">
+                      <BookOpen size={28} color="#0284c7" />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-lg font-bold text-slate-900" numberOfLines={1}>{item.fileName}</Text>
-                      <Text className="text-slate-500 text-sm">Tap to study</Text>
+                      <Text className="text-xl font-bold text-slate-900" numberOfLines={1}>{item.title}</Text>
+                      <View className="flex-row items-center mt-1">
+                        <Sparkles size={14} color="#0284c7" className="mr-1" />
+                        <Text className="text-slate-400 text-sm font-medium">Ready to study</Text>
+                      </View>
                     </View>
-                    <ChevronRight size={20} color="#cbd5e1" />
+                    <View className="bg-slate-50 p-2 rounded-full">
+                      <ChevronRight size={20} color="#cbd5e1" />
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
               ))
@@ -92,6 +163,20 @@ export default function FlashcardsScreen() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Floating Action Button */}
+      <Animated.View 
+        entering={BounceIn.delay(500)}
+        className="absolute bottom-8 right-6"
+      >
+        <TouchableOpacity 
+          onPress={handleUpload}
+          className="bg-primary-600 w-16 h-16 rounded-full items-center justify-center shadow-xl shadow-primary-500/40"
+          style={{ elevation: 8 }}
+        >
+          <Plus size={32} color="white" />
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Study Session Modal */}
       <Modal visible={sessionVisible} animationType="slide" presentationStyle="fullScreen">

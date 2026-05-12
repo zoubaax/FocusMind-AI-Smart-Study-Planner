@@ -3,6 +3,7 @@ package ma.zoubaa.smartstudyplanner.auth;
 import ma.zoubaa.smartstudyplanner.auth.dto.AuthenticationResponse;
 import ma.zoubaa.smartstudyplanner.auth.dto.LoginRequest;
 import ma.zoubaa.smartstudyplanner.auth.dto.RegisterRequest;
+import ma.zoubaa.smartstudyplanner.auth.dto.UserResponse;
 import ma.zoubaa.smartstudyplanner.security.JwtService;
 import ma.zoubaa.smartstudyplanner.user.Role;
 import ma.zoubaa.smartstudyplanner.user.User;
@@ -42,7 +43,17 @@ public class AuthService {
 
         repository.save(user);
         String jwtToken = jwtService.generateToken(user);
-        return new AuthenticationResponse(jwtToken);
+        return new AuthenticationResponse(
+            jwtToken,
+            new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getRole(),
+                user.getCreatedAt()
+            )
+        );
     }
 
     public AuthenticationResponse login(LoginRequest request) {
@@ -56,6 +67,16 @@ public class AuthService {
         User user = repository.findByEmail(request.email())
                 .orElseThrow();
         String jwtToken = jwtService.generateToken(user);
-        return new AuthenticationResponse(jwtToken);
+        return new AuthenticationResponse(
+            jwtToken,
+            new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getRole(),
+                user.getCreatedAt()
+            )
+        );
     }
 }
