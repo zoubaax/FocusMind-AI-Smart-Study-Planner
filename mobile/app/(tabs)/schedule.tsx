@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getSchedules, deleteSchedule } from '../../api/schedules';
-import { Calendar, FileText, Trash2, X, Eye, ExternalLink, GraduationCap } from 'lucide-react-native';
-import Animated, { FadeInUp, FadeInDown, SlideInRight } from 'react-native-reanimated';
+import { getSchedules, deleteSchedule, uploadSchedule } from '../../api/schedules';
+import { Calendar, FileText, Trash2, X, Eye, ExternalLink, GraduationCap, Plus, Upload, Image as ImageIcon } from 'lucide-react-native';
+import Animated, { FadeInUp, FadeInDown, SlideInRight, BounceIn } from 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ScheduleScreen() {
   const [schedules, setSchedules] = useState([]);
@@ -28,6 +30,60 @@ export default function ScheduleScreen() {
     fetchSchedules();
   }, []);
 
+  const handleUploadImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setLoading(true);
+        const asset = result.assets[0];
+        await uploadSchedule({
+          uri: asset.uri,
+          name: asset.fileName || 'schedule.jpg',
+          type: asset.mimeType || 'image/jpeg',
+        });
+        
+        Toast.show({ type: 'success', text1: 'Schedule Uploaded' });
+        fetchSchedules();
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      Toast.show({ type: 'error', text1: 'Upload Failed' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadPDF = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setLoading(true);
+        const asset = result.assets[0];
+        await uploadSchedule({
+          uri: asset.uri,
+          name: asset.name,
+          type: 'application/pdf',
+        });
+        
+        Toast.show({ type: 'success', text1: 'PDF Schedule Uploaded' });
+        fetchSchedules();
+      }
+    } catch (err) {
+      console.error('PDF upload error:', err);
+      Toast.show({ type: 'error', text1: 'Upload Failed' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     try {
       await deleteSchedule(id);
@@ -45,9 +101,25 @@ export default function ScheduleScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchSchedules();}} />}
       >
         <View className="px-6 pt-8 pb-10">
-          <View className="mb-8">
-            <Text className="text-3xl font-bold text-slate-900 tracking-tight">Academic Schedule</Text>
-            <Text className="text-slate-500 text-lg">Your synchronized timetables.</Text>
+          <View className="flex-row justify-between items-start mb-8">
+            <View className="flex-1 mr-4">
+              <Text className="text-3xl font-bold text-slate-900 tracking-tight">Academic Schedule</Text>
+              <Text className="text-slate-500 text-lg">Your synchronized timetables.</Text>
+            </View>
+            <View className="flex-row space-x-2 pt-1">
+              <TouchableOpacity 
+                onPress={handleUploadImage}
+                className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm"
+              >
+                <ImageIcon size={22} color="#0284c7" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleUploadPDF}
+                className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm"
+              >
+                <FileText size={22} color="#0284c7" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View className="space-y-4">

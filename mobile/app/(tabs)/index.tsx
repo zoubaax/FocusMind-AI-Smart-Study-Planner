@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { getDashboardStats, toggleTask } from '../../api/tasks';
-import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout, LogOut, Calendar, Plus, Upload, Image as ImageIcon, FileText } from 'lucide-react-native';
+import { getDashboardStats, toggleTask, deleteTask } from '../../api/tasks';
+import { CheckCircle2, Circle, Trophy, BookOpen, Clock, Layout, LogOut, Calendar, Plus, Upload, Image as ImageIcon, FileText, Trash2 } from 'lucide-react-native';
 import Animated, { FadeInDown, LinearTransition, BounceIn } from 'react-native-reanimated';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,6 +15,7 @@ import { DashboardSkeleton } from '../../components/Skeleton';
 
 export default function DashboardScreen() {
   const { user, onLogout } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,6 +67,23 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('Error toggling task:', error);
       fetchStats(); // Rollback on error
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      // Optimistic UI update
+      setStats(prev => ({
+        ...prev,
+        tasks: prev.tasks.filter(t => t.id !== taskId)
+      }));
+      
+      await deleteTask(taskId);
+      Toast.show({ type: 'success', text1: 'Task Deleted' });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      Toast.show({ type: 'error', text1: 'Delete Failed' });
+      fetchStats(); // Rollback
     }
   };
 
@@ -206,7 +225,7 @@ export default function DashboardScreen() {
           <View className="mb-10">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-xl font-bold text-slate-900">Today's Tasks</Text>
-              <TouchableOpacity onPress={onRefresh}>
+              <TouchableOpacity onPress={() => router.push('/tasks-all')}>
                 <Text className="text-primary-600 font-semibold">See all</Text>
               </TouchableOpacity>
             </View>
@@ -218,7 +237,7 @@ export default function DashboardScreen() {
                   <Text className="text-slate-400 mt-4 text-center">No tasks for today. Start by generating a plan!</Text>
                 </View>
               ) : (
-                stats?.tasks?.map((task, index) => (
+                stats?.tasks?.slice(0, 3).map((task, index) => (
                   <Animated.View 
                     key={task.id}
                     entering={FadeInDown.delay(index * 100)}
@@ -252,6 +271,13 @@ export default function DashboardScreen() {
                           <Text className="text-slate-400 text-xs ml-1">{task.timeSlot || 'Anytime'}</Text>
                         </View>
                       </View>
+                      
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteTask(task.id)}
+                        className="p-2 ml-2"
+                      >
+                        <Trash2 size={18} color="#94a3b8" />
+                      </TouchableOpacity>
                     </TouchableOpacity>
                   </Animated.View>
                 ))
