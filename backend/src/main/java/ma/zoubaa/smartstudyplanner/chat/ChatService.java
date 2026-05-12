@@ -62,26 +62,37 @@ public class ChatService {
                 .collect(Collectors.joining("\n"));
 
         String systemPrompt = String.format(
-                "You are FocusMind AI, a study assistant. User: %s\n" +
+                "You are FocusMind AI, a study assistant.\n" +
+                "User account email (for context only, NOT a recipient): %s\n" +
                 "Schedules: %s\n" +
                 "Today's tasks: %s\n\n" +
-                "EMAIL RULES:\n" +
-                "1. If asked to email, show a draft: 📧 **Email Draft**\\n**To:** ...\\n**Subject:** ...\n> body\\nShould I send this?\n" +
-                "2. When user confirms, reply ONLY: Sending email... [[SEND_EMAIL:{\"to\":\"...\",\"subject\":\"...\",\"body\":\"...\"}]]\n" +
-                "3. Never mention the tag. Never redraft after confirmation.\n" +
+                "EMAIL RULES (follow EXACTLY):\n" +
+                "1. When asked to email someone, show a draft:\n" +
+                "   📧 **Email Draft**\n" +
+                "   **To:** <THE RECIPIENT EMAIL THE USER SPECIFIED>\n" +
+                "   **Subject:** <subject>\n" +
+                "   > <body>\n" +
+                "   Should I send this?\n" +
+                "2. When user confirms (yes/send/ok), reply ONLY with:\n" +
+                "   Sending email... [[SEND_EMAIL:{\"to\":\"<SAME RECIPIENT FROM DRAFT>\",\"subject\":\"<same subject>\",\"body\":\"<same body>\"}]]\n" +
+                "3. CRITICAL: The 'to' field MUST be the RECIPIENT the user asked to email, NOT the user's own email (%s). " +
+                "Look at the **To:** field in your previous draft and use EXACTLY that address.\n" +
+                "4. Never show the [[SEND_EMAIL:...]] tag text. Never redraft after confirmation.\n" +
                 "Be concise.",
                 user.getEmail(),
                 scheduleInfo.isEmpty() ? "None" : scheduleInfo,
-                taskInfo.isEmpty() ? "None" : taskInfo);
+                taskInfo.isEmpty() ? "None" : taskInfo,
+                user.getEmail());
 
         // Build full message list including history
         java.util.List<Map<String, String>> messages = new java.util.ArrayList<>();
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
+        // Keep enough history to see draft→confirm flow
         if (history != null) {
             history.stream()
                     .filter(m -> m.get("content") != null && m.get("role") != null)
-                    .skip(Math.max(0, history.size() - 6))
+                    .skip(Math.max(0, history.size() - 10))
                     .forEach(m -> {
                         messages.add(Map.of("role", m.get("role"), "content", m.get("content")));
                     });
@@ -89,13 +100,18 @@ public class ChatService {
 
         messages.add(Map.of("role", "user", "content", userMessage));
 
-        // Try fast model first, fall back to larger model if degraded
-        String[] models = {"meta/llama-3.1-8b-instruct", "meta/llama-3.3-70b-instruct"};
+        // Try fast model first (short timeout), fall back to larger model if degraded
+        String[][] models = {
+            {"meta/llama-3.1-8b-instruct", "15000"},   // Fast model, 15s timeout (fail fast)
+            {"meta/llama-3.3-70b-instruct", "120000"}   // Fallback, full 120s timeout
+        };
 
-        for (String model : models) {
+        for (String[] entry : models) {
+            String model = entry[0];
+            int timeout = Integer.parseInt(entry[1]);
             try {
-                logger.info("Trying chat model: {}", model);
-                String result = callNvidiaApi(model, messages);
+                logger.info("Trying chat model: {} (timeout: {}ms)", model, timeout);
+                String result = callNvidiaApi(model, messages, timeout);
                 if (result != null) return result;
             } catch (Exception e) {
                 logger.warn("Model {} failed: {}. Trying next...", model, e.getMessage());
@@ -105,8 +121,15 @@ public class ChatService {
         return "I'm sorry, all AI models are currently unavailable. Please try again in a few minutes.";
     }
 
-    private String callNvidiaApi(String model, List<Map<String, String>> messages) {
+    private String callNvidiaApi(String model, List<Map<String, String>> messages, int timeoutMs) {
         String url = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+        // Create a RestTemplate with the specific timeout for this attempt
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = 
+            new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(timeoutMs);
+        RestTemplate rt = new RestTemplate(factory);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -119,7 +142,7 @@ public class ChatService {
         requestBody.put("max_tokens", 1024);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+        ResponseEntity<Map> response = rt.postForEntity(url, entity, Map.class);
 
         if (response.getBody() != null && response.getBody().containsKey("choices")) {
             List<Map<String, Object>> choices = (List<Map<String, Object>>) response.getBody().get("choices");

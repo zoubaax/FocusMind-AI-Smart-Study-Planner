@@ -27,7 +27,12 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      const response = await sendMessage(text, messages.slice(-10));
+      // Convert frontend format {text, sender} to backend format {role, content}
+      const history = messages.slice(-10).map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+      const response = await sendMessage(text, history);
       const aiMessage = { id: Date.now() + 1, text: response.response, sender: 'ai' };
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
