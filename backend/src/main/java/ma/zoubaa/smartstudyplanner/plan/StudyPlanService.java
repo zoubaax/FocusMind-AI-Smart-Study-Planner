@@ -28,18 +28,21 @@ public class StudyPlanService {
     private final ChatClient chatClient;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final ma.zoubaa.smartstudyplanner.task.StudyTaskRepository taskRepository;
 
     @Value("${spring.ai.openai.api-key}")
     private String nvidiaApiKey;
 
     public StudyPlanService(StudyPlanRepository repository,
                             ScheduleRepository scheduleRepository,
-                            ChatClient.Builder chatClientBuilder) {
+                            ChatClient.Builder chatClientBuilder,
+                            ma.zoubaa.smartstudyplanner.task.StudyTaskRepository taskRepository) {
         this.repository = repository;
         this.scheduleRepository = scheduleRepository;
         this.chatClient = chatClientBuilder.build();
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
+        this.taskRepository = taskRepository;
     }
 
     @Transactional
@@ -75,7 +78,70 @@ public class StudyPlanService {
             user
         );
 
-        return repository.save(plan);
+        StudyPlan savedPlan = repository.save(plan);
+        
+        // --- NEW: Convert AI sessions to actual StudyTasks ---
+        try {
+            createTasksFromPlan(savedPlan, user);
+            logger.info("Successfully created tasks from plan {}", savedPlan.getId());
+        } catch (Exception e) {
+            logger.error("Failed to create tasks from plan: {}", e.getMessage());
+            // Non-fatal for the plan itself, but user won't see tasks yet
+        }
+
+        return savedPlan;
+    }
+
+    private void createTasksFromPlan(StudyPlan plan, User user) throws IOException {
+        JsonNode root = objectMapper.readTree(plan.getContent());
+        JsonNode weeklyPlan = root.path("weeklyPlan");
+        
+        if (!weeklyPlan.isArray()) return;
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        
+        for (JsonNode dayNode : weeklyPlan) {
+            String dayName = dayNode.path("day").asText();
+            JsonNode sessions = dayNode.path("sessions");
+            
+            if (!sessions.isArray()) continue;
+
+            // Find the date for this day of the week
+            java.time.LocalDate taskDate = getNextOccurrence(today, dayName);
+
+            for (JsonNode session : sessions) {
+                String subject = session.path("subject").asText();
+                String timeStr = session.path("time").asText();
+                String topic = session.path("topic").asText();
+
+                // Parse "HH:mm - HH:mm"
+                try {
+                    String[] times = timeStr.split("-");
+                    java.time.LocalTime startTime = java.time.LocalTime.parse(times[0].trim());
+                    java.time.LocalTime endTime = java.time.LocalTime.parse(times[1].trim());
+
+                    ma.zoubaa.smartstudyplanner.task.StudyTask task = new ma.zoubaa.smartstudyplanner.task.StudyTask(
+                        subject, subject, topic,
+                        taskDate.atTime(startTime),
+                        taskDate.atTime(endTime),
+                        user, plan
+                    );
+                    taskRepository.save(task);
+                } catch (Exception e) {
+                    logger.warn("Could not parse time '{}' for task: {}", timeStr, e.getMessage());
+                }
+            }
+        }
+    }
+
+    private java.time.LocalDate getNextOccurrence(java.time.LocalDate start, String dayName) {
+        try {
+            java.time.DayOfWeek targetDay = java.time.DayOfWeek.valueOf(dayName.toUpperCase());
+            int daysToAdd = (targetDay.getValue() - start.getDayOfWeek().getValue() + 7) % 7;
+            return start.plusDays(daysToAdd);
+        } catch (Exception e) {
+            return start; // Fallback to today if day name is weird
+        }
     }
 
     /**
